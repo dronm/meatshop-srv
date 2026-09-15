@@ -1,0 +1,5 @@
+BEGIN;
+	DROP VIEW IF EXISTS orders_list;
+	ALTER TABLE orders ALTER COLUMN ref_1c SET DATA TYPE text USING ref_1c::text;
+COMMIT;
+

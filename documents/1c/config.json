@@ -1,0 +1,28 @@
+{	
+	"logLevel": "debug",
+	"logToFile": true,
+	"shutdownTimeout": "10s",
+
+	"httpAddr": ":5000",
+	"readTimeout": "120s",
+	"writeTimeout": "60s",
+	"idleTimeout": "120s",
+
+	"auth": {
+		"requireAuth": false,
+		"username": "myasmasters",
+		"password": ""
+	},
+
+	"com": {
+		"connectionString": "Srvr=\"vds484\";Ref=\"21315_576_34256\";Usr=\"Михалевич\";Pwd=\"1111\"",
+		"commandExec": "WebAPI",
+		"maxPoolSize": 1,
+		"minPoolSize": 1,
+		"idleTimeout": "120s",
+		"comObjectID": "V83.COMConnector",
+		"waitConnTimeout": "10s",
+		"cleanupIdleConn": "60s",
+		"connCloseTimeout": "60s"
+	}
+}

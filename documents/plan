@@ -1,0 +1,174 @@
+********** Web app
+- logins
+- users
+- permissions: admin/customer
+
+- customers
+	inn varchar(12) not null
+	kpp varchar(10)
+	name text not null
+	ref_1c jsonb
+	active bool default false
+
+- customer_sale_places
+	id
+	customer_id
+	name
+	active default true
+
+- orders
+	created_at
+	user_id
+	active default true
+
+- order_status
+	order_id
+	created_at
+	user_id
+	status text
+
+- audit
+- order_products
+	order_id
+	quant
+	measure_unit_id
+- products
+	name
+	is_group bool
+	ref_1c json {guid: text, descr: text}
+	parent_product_id
+	measure_unit_id
+	active default true
+
+- measure_units
+	name text, index on lower(name)
+	active default true
+
+******************** Redis notifications
+
+******************** MAX bot
+Inn:
+KPP:
+Sale_place:
+New order.
+Order history
+
+*************** 1c Integration
+- Windows service
+- 1c obrabotka
+order_create
+order_update
+order_delete
+
+
+		<model id="MaxUser" parent="ModelSQL" dataTable="max_users" virtual="FALSE" dataSchema="notifications">
+			<defaultOrder>
+				<field id="updated_at" sortDirect="DESC"/>
+			</defaultOrder>
+			<field id="id" dataType="Int" primaryKey="TRUE"/>
+			<field id="max_user_id" dataType="Int"/>
+			<field id="username" dataType="Text"/>
+			<field id="avatar_url" dataType="Text"/>
+			<field id="raw_user" dataType="JSONB"/>
+			<field id="raw_user_with_phote" dataType="JSONB"/>
+			<field id="ext_contact_id" dataType="Int"/>
+			<field id="updated_at" dataType="DateTimeTZ"/>
+			<index id="max_users_max_user_id_idx" unique="TRUE">
+				<field id="max_user_id"/>
+			</index>
+			<index id="max_users_max_contact_id_idx" unique="TRUE">
+				<field id="contact_id"/>
+			</index>
+		</model>
+		<model id="MaxUserList" parent="ModelSQL" dataTable="max_users_list" virtual="TRUE" dataSchema="notifications">
+			<defaultOrder>
+				<field id="updated_at" sortDirect="DESC"/>
+			</defaultOrder>
+			<field id="id" dataType="Int" primaryKey="TRUE"/>
+			<field id="max_user_id" dataType="Int"/>
+			<field id="username" dataType="Text"/>
+			<field id="avatar_url" dataType="Text"/>
+			<field id="raw_user" dataType="JSONB"/>
+			<field id="raw_user_with_phote" dataType="JSONB"/>
+			<field id="contacts_ref" dataType="JSON"/>
+			<field id="updated_at" dataType="DateTimeTZ"/>
+			<field id="contacts_tel" dataType="Text"/>
+		</model>
+		<model id="MaxOutMessage" parent="ModelSQL" dataTable="max_out_messages" virtual="FALSE" dataSchema="notifications">
+			<defaultOrder>
+				<field id="sent_at" sortDirect="DESC"/>
+			</defaultOrder>
+			<field id="id" dataType="Int" primaryKey="TRUE" autoInc="TRUE"/>
+			<field id="message" dataType="JSONB"/>
+			<field id="created_at" dataType="DateTimeTZ"/>
+			<field id="sent_at" dataType="DateTimeTZ"/>
+			<field id="max_chat_id" dataType="Int"/>
+			<field id="contact_id" dataType="Int" refTable="contacts" refField="id"/>
+			<field id="errors_str" dataType="Text"/>
+			<index id="max_out_messages_created_at_idx">
+				<field id="created_at"/>
+			</index>
+			<index id="max_out_messages_contact_id_idx">
+				<field id="contact_id"/>
+			</index>
+			<index id="max_out_messages_not_sent_idx">
+				<expression>sent_at IS NULL</expression>
+			</index>
+		</model>
+		<model id="MaxOutMessageList" parent="ModelSQL" dataTable="max_out_messages_list" virtual="TRUE" dataSchema="notifications">
+			<defaultOrder>
+				<field id="created_at" sortDirect="DESC"/>
+			</defaultOrder>
+			<field id="id" dataType="Int" primaryKey="TRUE" autoInc="TRUE"/>
+			<field id="message" dataType="JSONB"/>
+			<field id="created_at" dataType="DateTimeTZ"/>
+			<field id="sent_at" dataType="DateTimeTZ"/>
+			<field id="max_chat_id" dataType="Int"/>
+			<field id="contact_id" dataType="Int" refTable="contacts" refField="id"/>
+			<field id="contacts_ref" dataType="JSON"/>
+			<field id="error_str" dataType="Text"/>
+		</model>
+
+I need to create a MAX bot with application that does the following:
+A new user can start the bot and open an app.
+If user is not registered the app askes him for INN/KPP and sale place (name, address). 
+The user can see his order history and can create a new order.
+A new order form just shows an item list (limited to a user history or full list - selectable).
+The user sets the desired number at each item he wishes to order.
+Office administator can see all orders, filter, sort, modify, change statuses.
+I want to use vue for frontend and golang for backend.
+Is it all possible in MAX?
+I need to assess the amount of time I would need to create and deploy this app.
+Do not code now, just make an assessment and give me a plan.
+
+
+https://dev.max.ru/docs/chatbots/bots-create/create
+
+Что получите:
+- МАХ бот, 
+	- регистрация новых пользователей. Если новый пользователь, предлагается ввести ИНН/КПП. Если есть
+	в системее или в 1с - привязка автоматом, если нет - уведомление адиину, ждем привязки от админа,
+	после уведомление в бот этому контрагенту, что можно создавать заявки;
+	- создание заявок: ассортимент по истории пользователя/весь, выбор (создание) точки продажи,
+	указание количества напротив каждой позиции. Каталог продукции разбит на группы;
+	- история заявок. Можно открыть прошлые заявки, видеть статусы;
+	- уведомления по заявке (смена статуса);
+
+- Web приложение с интеграцией 1с (отдельный модуль устанавливается на сервер рядом с 1с):
+	пока только для работы админа, без склада, ну или если дадите форму как надо, чтобы видел склад - форма для склада,
+	пока только просмотр. 
+	Функционал:
+	- Список контрагентов, связка с 1с. Возможность блокировки.
+	- Список заявок, различные фильтры, сортировки, экспорт в 1с (счет, автоматом), статусы.
+	- уведомление в МАХ о событиях: новая заявка, новый контрагент
+	- Ведение списка продукции, связка с 1с.
+
+
+FRONT:
+X 1) Customer edit form
+2) Products list form with groups and edit page.
+3) MAX bot.
+4) 1c integration. Mock server
+	- Nomenklatura autocomplete
+	- Kontragent autocomplete
+	- order creation

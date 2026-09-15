@@ -1,0 +1,2 @@
+// Package maxbot
+package maxbot

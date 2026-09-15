@@ -1,0 +1,30 @@
+schemaDir: ./schema
+serverRoot: .
+frontendRoot: ../../dronm-workspace/apps/meatshop-admin
+migrationsDir: ./migrations
+
+backend:
+  enabled: true
+
+frontend:
+  enabled: true
+
+apiTest:
+  enabled: true
+
+registries:
+  enabled: true
+
+migrations:
+  enabled: true
+  overwrite: false
+  createMode: internal
+  createBin: migrate
+  createExt: sql
+  createSeq: true
+  sequenceWidth: 6
+
+allowManualCollisions: true
+goJsonTagName: json
+goFilterTagName: f
+

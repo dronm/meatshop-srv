@@ -1,0 +1,214 @@
+name: Customer
+comment: Customer describes an editable customer reference entry.
+humanName: customer
+humanNamePlural: customers
+
+table:
+  schema: public
+  name: customers
+  comment: Customer reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /customer
+permissionPrefix: customer
+serviceName: Customer
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: text
+    required: true
+    comment: Display name of the customer.
+
+  - name: inn
+    type: string
+    maxLen: 12
+    required: true
+    comment: Customer INN.
+
+  - name: kpp
+    type: string
+    maxLen: 10
+    required: false
+    nullable: true
+    comment: Customer KPP.
+
+  - name: ref_1c
+    type: jsonb
+    goType: "*Ref1c"
+    nullable: true
+    comment: Reference to 1C counterparty.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+  - name: allow_holiday_orders
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Allows orders whose for_date is a holiday.
+
+list:
+  model: CustomerList
+  table:
+    schema: public
+    name: customers_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: name
+      type: text
+
+    - name: inn
+      type: text
+
+    - name: kpp
+      type: text
+      nullable: true
+
+    - name: ref_1c_exists
+      type: bool
+
+    - name: is_active
+      type: bool
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание покупателя
+    list: Просмотр списка покупателей
+    detail: Просмотр покупателя
+    update: Изменение покупателя
+    delete: Удаление покупателя
+
+applicationRoute:
+  enabled: true
+  name: customers
+  path: /customer
+  description: Покупатели
+  section: Справочники
+  icon: pi pi-users
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Покупатели
+  sortOrder: 10
+  parent:
+    caption: Покупатели
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Покупатели
+  form:
+    columns: 2
+    createTitle: Новый покупатель
+    editTitle: Покупатель
+    copyTitle: Копия покупателя
+    fields:
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: inn
+        label: ИНН
+        component: text
+        autofocus: false
+
+      - field: kpp
+        label: КПП
+        component: text
+        autofocus: false
+
+      - field: ref_1c
+        label: Ссылка 1с
+        component: CounterpartyRef1cReferenceInput
+        componentImport: "@/components/references/CounterpartyRef1cReferenceInput.vue"
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+      - field: allow_holiday_orders
+        label: Заказы в праздники
+        component: checkbox
+        default: false
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: inn
+        label: ИНН
+        width: 14rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: customers
+    createName: customerCreate
+    editName: customerEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: customers_name_idx
+      columns:
+        - lower(name)
+
+    - name: customers_inn_idx
+      columns:
+        - inn
+      unique: true
+
+    - name: customers_ref_1c_idx
+      columns:
+        - (ref_1c->>'id')
+      unique: true
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

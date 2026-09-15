@@ -1,0 +1,269 @@
+name: Product
+comment: Product describes an editable product reference entry.
+humanName: product
+humanNamePlural: products
+
+table:
+  schema: public
+  name: products
+  comment: Product reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /product
+permissionPrefix: product
+serviceName: Product
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: parent_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: products
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Parent product group.
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 500
+    comment: Display name of the product.
+
+  - name: description
+    type: text
+    nullable: true
+    comment: Full name of the product.
+
+  - name: ref_1c
+    type: jsonb
+    goType: "*Ref1c"
+    nullable: true
+    comment: Reference to 1C element.
+
+  - name: sort_order
+    type: int
+    required: true
+    dbRequired: true
+    default: "0"
+    comment: Sort order.
+
+  - name: measure_unit_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Base measurement unit of the product.
+
+  - name: is_group
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Indicates whether the product is a group.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+    comment: Indicates whether the product is active.
+
+list:
+  model: ProductList
+  table:
+    schema: public
+    name: products_list
+
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: parent_id
+      type: int
+      nullable: true
+
+    - name: name
+      type: string
+      required: true
+
+    - name: measure_unit_id
+      type: int
+      nullable: true
+
+    - name: ref_1c
+      type: jsonb
+      goType: "*Ref1c"
+      nullable: true
+
+    - name: measure_unit
+      type: jsonb
+      goType: "*Ref"
+      nullable: true
+
+    - name: sort_order
+      type: int
+      required: true
+
+    - name: is_group
+      type: bool
+      required: true
+
+    - name: is_active
+      type: bool
+      required: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание продукции
+    list: Просмотр списка продукции
+    detail: Просмотр продукции
+    update: Изменение продукции
+    delete: Удаление продукции
+
+applicationRoute:
+  enabled: true
+  name: products
+  path: /product
+  description: Продукция
+  section: Справочники
+  icon: pi pi-list
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Продукция
+  sortOrder: 10
+  parent:
+    caption: Продукция
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Продукция
+
+  form:
+    columns: 2
+    createTitle: Новая продукция
+    editTitle: Продукция
+    copyTitle: Копия продукции
+
+    fields:
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: description
+        label: Описание
+        component: text
+        autofocus: false
+
+      - field: parent_id
+        label: Группа
+        component: ProductGroupReferenceInput
+        componentImport: "@/components/references/ProductGroupReferenceInput.vue"
+        autofocus: false
+
+      - field: measure_unit_id
+        label: Единица
+        component: MeasureUnitReferenceInput
+        componentImport: "@/components/references/MeasureUnitReferenceInput.vue"
+        autofocus: false
+
+      - field: ref_1c
+        label: Ссылка 1С
+        component: ProductRef1cReferenceInput
+        componentImport: "@/components/references/ProductRef1cReferenceInput.vue"
+        autofocus: false
+
+      - field: is_group
+        label: Это группа
+        component: checkbox
+        default: false
+
+      - field: sort_order
+        label: Порядок сортировки
+        component: number
+        default: 0
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: measure_unit
+        label: Единица
+        width: 12rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: products
+    createName: productCreate
+    editName: productEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: products_name_idx
+      columns:
+        - lower(name)
+
+    - name: products_parent_id_idx
+      columns:
+        - parent_id
+
+    - name: products_ref_1c_idx
+      columns:
+        - (ref_1c->>'id')
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

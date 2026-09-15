@@ -1,0 +1,95 @@
+{
+  "http": {
+    "addr": "localhost:59000",
+    "read_timeout": "15s",
+    "write_timeout": "400s",
+    "idle_timeout": "60s",
+    "request_timeout": "30s"
+  },
+  "database": {
+    "primary": "postgresql://meatshop:159753@localhost:5432/meatshop",
+    "primary11": "postgresql://meatshop:159753@192.168.1.177:5432/meatshop?sslmode=disable",
+    "secondaries": {}
+  },
+  "cors": {
+    "allowed_origins": [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173"
+    ],
+    "allowed_methods": [
+      "GET",
+      "POST",
+      "PATCH",
+      "PUT",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "allowed_headers": [
+      "Content-Type",
+      "Authorization",
+      "X-Query-Id"
+    ],
+    "exposed_headers": [
+		"Query-Id",
+		"Content-Disposition"
+    ],
+    "allow_credentials": true,
+    "max_age_seconds": 86400
+  },
+  "session": {
+    "enabled": true,
+    "cookie_name": "_s",
+    "cookie_domain": "",
+    "secure": false,
+    "same_site": "lax",
+    "max_life_time": 86400,
+    "max_idle_time": 3600,
+    "destroy_all_time": "03:00",
+    "redis": {
+      "connect": "redis://meatshop:82780ed2c1ea11f12b7a7516b6163537e92ccd672671bcb9b02fff6f02037066@192.168.1.177:5015/0",
+      "namespace": "meatshop"
+    }
+  },
+  "debug": {
+    "log_config": true,
+    "log_level": "debug",
+    "log_format": "text"
+  },
+  "main_menu": {
+    "cache_enabled": true,
+    "cache_ttl": "15m"
+  },
+  "integration_1c": {
+    "url": "http://127.0.0.1:3001",
+    "timeout": "15s",
+    "max_retries": 2,
+    "retry_delay": "250ms",
+    "worker": {
+      "enabled": true,
+      "worker_id": "",
+      "concurrency": 1,
+      "poll_interval": "2s",
+      "notify_reconnect_interval": "5s",
+      "requeue_interval": "1m",
+      "lock_timeout": "15m",
+      "job_timeout": "5m",
+      "retry_base_delay": "5s",
+      "retry_max_delay": "5m",
+      "result_poll_interval": "2s"
+    }
+  },
+  "max": {
+    "bot_token": "f9LHodD0cOIYfuVsY6ySd1OrszxpyXhIpIq8r44kQqnbp_L-Nk_6X82CzS9ke5tI_EcyeZ3edjjDRfzFh-5t",
+    "init_data_max_age": "0s",
+    "http_addr": "localhost:59001",
+    "webhook_url": "https://178.46.157.185/meatshop-max-webhook",
+    "webhook_secret": "3d13fa7bc94182561eb6eec6ff89747c44514ce5c687967d7e716a27e8a89a01",
+    "mini_app_url": "https://178.46.157.185/meatshop-max-app",
+    "sender_poll_interval": "2s",
+    "sender_notify_reconnect_interval": "5s",
+    "sender_lock_timeout": "1m",
+    "sender_retry_base_delay": "5s",
+    "sender_retry_max_delay": "5m",
+    "sender_max_attempts": 5
+  }
+}

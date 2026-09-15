@@ -1,0 +1,336 @@
+name: Order
+comment: Order describes an order document header.
+humanName: order
+humanNamePlural: orders
+
+table:
+  schema: public
+  name: orders
+  comment: Order document headers.
+
+route: /order
+permissionPrefix: order
+serviceName: Order
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: version
+    type: bigint
+    required: true
+    dbRequired: true
+    serverGenerated: true
+    default: "1"
+    comment: Optimistic concurrency version.
+
+  - name: for_date
+    type: date
+    required: true
+    comment: Order for what date.
+
+  - name: number_1c
+    type: text
+    nullable: true
+
+  - name: ref_1c
+    type: jsonb
+    goType: "*Ref1c"
+    nullable: true
+    comment: Reference to 1c object.
+
+  - name: shipment_ref_1c
+    type: jsonb
+    goType: "*Ref1c"
+    nullable: true
+    comment: Reference to 1c shipment object.
+
+  - name: customer_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: customers
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Customer reference
+
+  - name: customer_sale_place_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: customer_sale_places
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Customer sale place reference
+
+  - name: customer_user_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: max_users
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Customer user reference
+
+  - name: status_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: order_statuses
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Order status reference
+
+  - name: comment_customer
+    type: text
+    nullable: true
+
+  - name: comment_admin
+    type: text
+    nullable: true
+
+list:
+  model: OrderList
+  table:
+    schema: public
+    name: orders_list
+
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: number_1c
+      type: text
+      nullable: true
+
+    - name: for_date
+      type: date
+
+    - name: ref_1c
+      type: jsonb
+      goType: "*Ref1c"
+      nullable: true
+
+    - name: shipment_ref_1c
+      type: jsonb
+      goType: "*Ref1c"
+      nullable: true
+
+    - name: customer_id
+      type: int
+
+    - name: customer
+      type: json
+      goType: "*Ref"
+
+    - name: customer_sale_place
+      type: json
+      goType: "*Ref"
+
+    - name: customer_user
+      type: json
+      goType: "*Ref"
+      nullable: true
+
+    - name: status
+      type: json
+      goType: "*Ref"
+      nullable: true
+
+    - name: comment_customer
+      type: text
+      nullable: true
+
+    - name: comment_admin
+      type: text
+      nullable: true
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+service:
+  manualMethods:
+    - create
+    - detail
+    - update
+    - delete
+
+# All order HTTP endpoints are registered by orderDocumentRoutes.
+httpRoutes:
+  enabled: false
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание заказа
+    list: Просмотр списка заказов
+    detail: Просмотр заказа
+    update: Изменение заказа
+    delete: Удаление заказа
+
+applicationRoute:
+  enabled: true
+  name: orders
+  path: /order
+  description: Заказы
+  section: Документы
+  icon: pi pi-truck
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Заказы
+  sortOrder: 10
+  parent:
+    caption: Заказы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Заказы
+  form:
+    columns: 2
+    createTitle: Новый заказ
+    editTitle: Заказ
+    copyTitle: Копия заказа
+    fields:
+      - field: number_1c
+        label: Номер 1с
+        component: text
+        autofocus: false
+
+      - field: for_date
+        label: На дату 
+        component: DatePicker
+        componentImport: primevue/datepicker
+
+      - field: ref_1c
+        label: Ссылка 1с
+        component: OrderRef1cReferenceInput
+        componentImport: "@/components/references/OrderRef1cReferenceInput.vue"
+
+      - field: shipment_ref_1c
+        label: Ссылка 1с
+        component: ShipmentRef1cReferenceInput
+        componentImport: "@/components/references/ShipmentRef1cReferenceInput.vue"
+
+      - field: customer_id
+        label: Заказчик
+        component: CustomerReferenceInput
+        componentImport: "@/components/references/CustomerReferenceInput.vue"
+        autofocus: true
+
+      - field: customer_user_id
+        label: Пользователь
+        component: CustomerUserReferenceInput
+        componentImport: "@/components/references/CustomerUserReferenceInput.vue"
+        autofocus: false
+
+      - field: customer_sale_place_id
+        label: Точка продаж
+        component: CustomerSalePlaceReferenceInput
+        componentImport: "@/components/references/CustomerSalePlaceReferenceInput.vue"
+        autofocus: false
+
+      - field: status_id
+        label: Статус
+        component: OrderStatusReferenceInput
+        componentImport: "@/components/references/OrderStatusReferenceInput.vue"
+        autofocus: false
+
+      - field: comment_customer
+        label: Комментарий заказчика
+        component: text
+
+      - field: comment_admin
+        label: Комментарий наш
+        component: text
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 5rem
+
+      - field: for_date
+        label: На дату
+        width: 8rem
+
+      - field: number_1c
+        label: Номер
+        width: 6rem
+
+      - field: customer
+        label: Заказчик
+        width: 12rem
+
+      - field: customer_sale_place
+        label: Точка
+        width: 12rem
+
+      - field: customer_user
+        label: Пользователь
+        width: 8rem
+
+      - field: status
+        label: Статус
+        width: 8rem
+
+  routes:
+    listName: orders
+    createName: orderCreate
+    editName: orderEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: orders_for_date_idx
+      columns:
+        - for_date
+
+    - name: orders_customer_id_idx
+      columns:
+        - customer_id
+
+    - name: orders_number_1c_idx
+      columns:
+        - number_1c
+
+    - name: orders_ref_1c_idx
+      columns:
+        - ref_1c
+        - shipment_ref_1c
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+

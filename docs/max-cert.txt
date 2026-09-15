@@ -1,0 +1,29 @@
+sudo apt update
+sudo apt install -y ca-certificates curl openssl
+
+cd /tmp
+
+curl -fLO https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt
+curl -fLO https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt
+
+sudo cp \
+	russian_trusted_root_ca_pem.crt \
+	/usr/local/share/ca-certificates/russian_trusted_root_ca.crt
+
+sudo cp \
+	russian_trusted_sub_ca_pem.crt \
+	/usr/local/share/ca-certificates/russian_trusted_sub_ca.crt
+
+sudo update-ca-certificates
+
+#verify
+curl -v https://platform-api2.max.ru/me
+
+openssl s_client \
+	-connect platform-api2.max.ru:443 \
+	-servername platform-api2.max.ru \
+	-CAfile /etc/ssl/certs/ca-certificates.crt \
+	</dev/null
+
+#whole test
+curl -v https://myasmasters.katren.org/max-webhook

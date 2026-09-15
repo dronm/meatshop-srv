@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE products ALTER COLUMN sort_order DROP NOT NULL;
+ALTER TABLE products ALTER COLUMN measure_unit_id DROP NOT NULL;
+
+COMMIT;

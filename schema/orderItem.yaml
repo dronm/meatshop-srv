@@ -1,0 +1,127 @@
+name: OrderItem
+comment: OrderItem describes a line of a order document.
+humanName: order item
+humanNamePlural: order items
+
+table:
+  schema: public
+  name: order_items
+  comment: order document lines.
+  checks:
+    - line_num > 0
+    - quant_required > 0
+    - quant > 0
+
+route: /order-items
+permissionPrefix: orderItem
+serviceName: OrderItem
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: line_num
+    type: int
+    required: true
+    comment: Line number within the document.
+
+  - name: order_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: orders
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: Parent order document.
+
+  - name: product_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: products
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Product.
+
+  - name: measure_unit_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: measure_units
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Measurement unit.
+
+  - name: quant_required
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Ordered product quantity.
+
+  - name: quant
+    type: numeric
+    sqlType: numeric(19, 4)
+    required: true
+    comment: Product quantity.
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+# Order items are aggregate children and are exposed only through order routes.
+httpRoutes:
+  enabled: false
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание строки заказа
+    list: Просмотр строк заказа
+    detail: Просмотр строки заказа
+    update: Изменение строки заказа
+    delete: Удаление строки заказа
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+# The current public codegen does not expose CollectionGrid editMode in YAML.
+# Keep item entities without standalone pages; use their generated types/API
+# from the parent document's inline item grid.
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: order_items_order_id_line_num_idx
+      columns:
+        - order_id
+        - line_num
+      unique: true
+
+test:
+  enabled: false

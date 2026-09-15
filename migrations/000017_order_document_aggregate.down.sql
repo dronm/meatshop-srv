@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE public.orders
+	DROP COLUMN IF EXISTS version;
+
+COMMIT;

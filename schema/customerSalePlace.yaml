@@ -1,0 +1,154 @@
+name: CustomerSalePlace
+comment: CustomerSalePlace describes an editable customer sale place reference entry.
+humanName: Customer sale place
+humanNamePlural: Customer sale places
+
+table:
+  schema: public
+  name: customer_sale_places
+  comment: Customer sale place reference data.
+
+route: /customer-sale-places
+permissionPrefix: customerSalePlace
+serviceName: CustomerSalePlace
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: customer_id
+    type: int
+    required: false
+    references:
+      schema: public
+      table: customers
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+    comment: Customer reference
+
+  - name: name
+    type: text
+    required: true
+    comment: Customer sale place display name.
+
+  - name: address
+    type: text
+    required: false
+    nullable: true
+    comment: Sale place optional exact address.
+
+  - name: kpp
+    type: string
+    maxLen: 10
+    required: false
+    nullable: true
+    comment: Customer KPP.
+
+  - name: ref_1c
+    type: jsonb
+    goType: "*Ref1c"
+    nullable: true
+    comment: Reference to 1C counterparty.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+    comment: Whether the sale place is active.
+
+list:
+  model: CustomerSalePlaceList
+  table:
+    schema: public
+    name: customer_sale_places
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+
+    - name: customer_id
+      type: int
+
+    - name: name
+      type: text
+
+    - name: address
+      nullable: true
+      type: text
+
+    - name: kpp
+      type: text
+      nullable: true
+
+    - name: ref_1c
+      type: jsonb
+      goType: "*Ref1c"
+      nullable: true
+
+    - name: is_active
+      type: bool
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр списка точек продаж
+    detail: Просмотр точки продажи
+    update: Изменение точки продажи
+    delete: Удаление точки продажи
+
+applicationRoute:
+  enabled: true
+  name: customerSalePlaces
+  path: /customer-sale-places
+  description: Точки продажи
+  section: Справочники
+  icon: pi pi-warehouse
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Точки продажи
+  sortOrder: 10
+  parent:
+    caption: Точки продажи
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: false
+
+migration:
+  enabled: true
+  indexes:
+    - name: customer_sale_places_customer_name_idx
+      columns:
+        - customer_id
+        - lower(name)
+      unique: true
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false

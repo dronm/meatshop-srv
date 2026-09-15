@@ -1,0 +1,141 @@
+name: MeasureUnit
+comment: MeasureUnit describes an editable measure unit reference entry.
+humanName: measure unit
+humanNamePlural: measure units
+
+table:
+  schema: public
+  name: measure_units
+  comment: Measure unit reference data.
+  checks:
+    - btrim(name) <> ''
+
+route: /measure-unit
+permissionPrefix: measureUnit
+serviceName: MeasureUnit
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: name
+    type: string
+    required: true
+    maxLen: 250
+    comment: Display name of the measure unit.
+
+  - name: name_full
+    type: text
+    required: true
+    comment: Full name of the measure unit.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание единицы измерения
+    list: Просмотр списка единиц измерения
+    detail: Просмотр единицы измерения
+    update: Изменение единицы измерения
+    delete: Удаление единицы измерения
+
+applicationRoute:
+  enabled: true
+  name: measureUnits
+  path: /measure-unit
+  description: Единицы измерения
+  section: Справочники
+  icon: pi pi-car
+  menuAvailable: true
+
+menu:
+  enabled: true
+  role: admin
+  caption: Единицы измерения
+  sortOrder: 10
+  parent:
+    caption: Единицы
+    sortOrder: 40
+    create: true
+
+frontend:
+  scaffold: true
+  title: Единицы измерения
+  form:
+    columns: 2
+    createTitle: Новaя единица измерения
+    editTitle: единица измерения
+    copyTitle: Копия единица измерения
+    fields:
+      - field: name
+        label: Наименование
+        component: text
+        autofocus: true
+
+      - field: name_full
+        label: Полн. наименование
+        component: text
+        autofocus: false
+
+      - field: is_active
+        label: Активна
+        component: checkbox
+        default: true
+
+  list:
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: name
+        label: Наименование
+        width: 32rem
+
+      - field: is_active
+        label: Активна
+        width: 8rem
+
+  routes:
+    listName: measureUnits
+    createName: measureUnitCreate
+    editName: measureUnitEdit
+
+migration:
+  enabled: true
+  indexes:
+    - name: measure_units_name_idx
+      columns:
+        - lower(name)
+
+# Generated integration tests require full CRUD and concrete values that satisfy
+# all foreign keys in the target database. Enable only after supplying them.
+test:
+  enabled: false
+
+

@@ -1,0 +1,86 @@
+name: OrderCalendarDay
+comment: OrderCalendarDay describes an order calendar override.
+humanName: order calendar day
+humanNamePlural: order calendar days
+
+table:
+  schema: public
+  name: order_calendar_days
+  comment: Order calendar overrides. Sundays are holidays by default when no row exists.
+  checks:
+    - name IS NULL OR btrim(name) <> ''
+
+route: /order-calendar-days
+permissionPrefix: orderCalendarDay
+serviceName: OrderCalendarDay
+sessionRequired: true
+crudNotifications: true
+
+keys:
+  - name: id
+    pathName: id
+    type: int
+
+fields:
+  # A generated integer key keeps native PostgreSQL date encoding and scanning
+  # while calendar_date remains the unique business key.
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: calendar_date
+    type: date
+    required: true
+    dbRequired: true
+    unique: true
+    comment: Business calendar date.
+
+  - name: is_holiday
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+    comment: Whether the date is a holiday; false marks a working-day override.
+
+  - name: name
+    type: text
+    nullable: true
+    comment: Optional holiday or working-day override description.
+
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    create: Создание дня календаря заказов
+    list: Просмотр календаря заказов
+    detail: Просмотр дня календаря заказов
+    update: Изменение дня календаря заказов
+    delete: Удаление дня календаря заказов
+
+# Keep the calendar out of the application menu until its administration page
+# is explicitly enabled. Backend CRUD and frontend API/types remain generated.
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: false
+
+# Migration 000043_order_date_rules already owns this table.
+migration:
+  enabled: false
+
+test:
+  enabled: false
