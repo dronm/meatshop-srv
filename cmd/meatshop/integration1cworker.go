@@ -72,7 +72,8 @@ func newIntegration1CWorkerRuntime(
 			ResultPollInterval:      resultPollInterval,
 		},
 		map[string]integration1cworker.ResultHandler{
-			integration.CommandCreateOrder: services.HandleCreateOrder1CResult,
+			integration.CommandCreateOrder:     services.HandleCreateOrder1CResult,
+			integration.CommandCreateShipments: services.HandleCreateShipments1CResult,
 		},
 	)
 	if err != nil {

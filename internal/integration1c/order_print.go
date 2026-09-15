@@ -8,20 +8,35 @@ import (
 	"strings"
 )
 
-const CommandOrderPrintForm = "order_print_form"
+const (
+	CommandPrintOrder    = "print_order"
+	CommandPrintShipment = "print_shipment"
+)
 
-type OrderPrintFormParams struct {
-	OrderID string `json:"order_id"`
+type OrderIDsParams struct {
+	OrderIDs []int `json:"order_ids"`
 }
 
-func (c *Client) OrderPrintForm(ctx context.Context, orderID string) (BinaryResponse, error) {
-	orderID = strings.TrimSpace(orderID)
-	if orderID == "" {
-		return BinaryResponse{}, fmt.Errorf("1c order id is required")
+func (c *Client) PrintOrder(ctx context.Context, orderIDs []int) (BinaryResponse, error) {
+	return c.printPDF(ctx, CommandPrintOrder, "order", orderIDs)
+}
+
+func (c *Client) PrintShipment(ctx context.Context, orderIDs []int) (BinaryResponse, error) {
+	return c.printPDF(ctx, CommandPrintShipment, "shipment", orderIDs)
+}
+
+func (c *Client) printPDF(
+	ctx context.Context,
+	command string,
+	documentName string,
+	orderIDs []int,
+) (BinaryResponse, error) {
+	if err := ValidateOrderIDs(orderIDs); err != nil {
+		return BinaryResponse{}, err
 	}
 
-	response, err := executeBinary(ctx, c, CommandOrderPrintForm, OrderPrintFormParams{
-		OrderID: orderID,
+	response, err := executeBinary(ctx, c, command, OrderIDsParams{
+		OrderIDs: append([]int(nil), orderIDs...),
 	})
 	if err != nil {
 		return BinaryResponse{}, err
@@ -29,7 +44,8 @@ func (c *Client) OrderPrintForm(ctx context.Context, orderID string) (BinaryResp
 
 	if !isPDFResponse(response) {
 		return BinaryResponse{}, fmt.Errorf(
-			"1c order print form returned unexpected content type %q",
+			"1c %s print returned unexpected content type %q",
+			documentName,
 			response.ContentType,
 		)
 	}
@@ -47,4 +63,23 @@ func isPDFResponse(response BinaryResponse) bool {
 	}
 
 	return bytes.HasPrefix(bytes.TrimSpace(response.Body), []byte("%PDF-"))
+}
+
+func ValidateOrderIDs(orderIDs []int) error {
+	if len(orderIDs) == 0 {
+		return fmt.Errorf("order_ids is required")
+	}
+
+	seen := make(map[int]struct{}, len(orderIDs))
+	for index, orderID := range orderIDs {
+		if orderID <= 0 {
+			return fmt.Errorf("order_ids[%d] should be positive", index)
+		}
+		if _, exists := seen[orderID]; exists {
+			return fmt.Errorf("order_ids[%d] is duplicated", index)
+		}
+		seen[orderID] = struct{}{}
+	}
+
+	return nil
 }

@@ -10,6 +10,7 @@ type OrderDocument struct {
 	ForDate             time.Time            `json:"for_date"`
 	Number1C            *string              `json:"number_1c"`
 	Ref1C               *Ref1c               `json:"ref_1c"`
+	ShipmentRef1C       *Ref1c               `json:"shipment_ref_1c"`
 	CustomerID          int                  `json:"customer_id"`
 	CustomerSalePlaceID int                  `json:"customer_sale_place_id"`
 	CustomerUserID      *int                 `json:"customer_user_id"`
@@ -38,6 +39,7 @@ type OrderDetail struct {
 	ForDate             time.Time          `json:"for_date"`
 	Number1C            *string            `json:"number_1c"`
 	Ref1C               *Ref1c             `json:"ref_1c"`
+	ShipmentRef1C       *Ref1c             `json:"shipment_ref_1c"`
 	CustomerID          int                `json:"customer_id"`
 	Customer            *Ref               `json:"customer"`
 	CustomerSalePlaceID int                `json:"customer_sale_place_id"`

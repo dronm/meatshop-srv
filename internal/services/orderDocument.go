@@ -39,13 +39,8 @@ func validateOrderDocument(document *models.OrderDocument, create bool, pathID i
 	document.Number1C = trimOptionalString(document.Number1C)
 	document.CommentCustomer = trimOptionalString(document.CommentCustomer)
 	document.CommentAdmin = trimOptionalString(document.CommentAdmin)
-	if document.Ref1C != nil {
-		document.Ref1C.ID = strings.TrimSpace(document.Ref1C.ID)
-		document.Ref1C.Descr = strings.TrimSpace(document.Ref1C.Descr)
-		if document.Ref1C.ID == "" {
-			document.Ref1C = nil
-		}
-	}
+	document.Ref1C = normalizeOrderRef1C(document.Ref1C)
+	document.ShipmentRef1C = normalizeOrderRef1C(document.ShipmentRef1C)
 
 	if len(document.Items) == 0 {
 		return webapp.BadRequest("order should contain at least one item", nil)
@@ -88,6 +83,19 @@ func validateOrderDocument(document *models.OrderDocument, create bool, pathID i
 	}
 
 	return nil
+}
+
+func normalizeOrderRef1C(value *models.Ref1c) *models.Ref1c {
+	if value == nil {
+		return nil
+	}
+
+	value.ID = strings.TrimSpace(value.ID)
+	value.Descr = strings.TrimSpace(value.Descr)
+	if value.ID == "" {
+		return nil
+	}
+	return value
 }
 
 func validateOrderDocumentIdentity(bodyID int, version int64, create bool, pathID int) error {
@@ -147,6 +155,7 @@ func fetchOrderDetail(
 			orders.for_date,
 			orders.number_1c,
 			orders.ref_1c,
+			orders.shipment_ref_1c,
 			orders.customer_id,
 			customers_ref(customer) AS customer,
 			orders.customer_sale_place_id,
@@ -194,7 +203,7 @@ func fetchOrderDetail(
 		var version int64
 		var forDate time.Time
 		var number1C, commentCustomer, commentAdmin *string
-		var ref1C *models.Ref1c
+		var ref1C, shipmentRef1C *models.Ref1c
 		var customerUserID, statusID *int
 		var customer, customerSalePlace, customerUser, status *models.Ref
 		var itemID, lineNum, productID, measureUnitID *int
@@ -207,6 +216,7 @@ func fetchOrderDetail(
 			&forDate,
 			&number1C,
 			&ref1C,
+			&shipmentRef1C,
 			&customerID,
 			&customer,
 			&customerSalePlaceID,
@@ -236,6 +246,7 @@ func fetchOrderDetail(
 				ForDate:             forDate,
 				Number1C:            number1C,
 				Ref1C:               ref1C,
+				ShipmentRef1C:       shipmentRef1C,
 				CustomerID:          customerID,
 				Customer:            customer,
 				CustomerSalePlaceID: customerSalePlaceID,

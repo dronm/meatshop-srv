@@ -628,4 +628,77 @@ For a newly created local Order `id=42`, `version=1`:
 12. The result consumer calls `HandleCreateOrder1CResult`.
 13. On a valid successful response, `orders.ref_1c` receives the returned 1C `{id, descr}`.
 14. The result is marked consumed.
-15. Later `GET /api/order/{id}/print-1c` can use `orders.ref_1c.id` to request the 1C PDF print form.
+15. Later `GET /api/order/{id}/print-1c` sends `print_order` with
+    `order_ids: [42]` and returns the PDF produced by 1C.
+
+## 16. Batch printing and shipment creation
+
+The Order integration now has three related batch commands. Every command
+receives local numeric `orders.id` values in the same parameter object:
+
+```json
+{
+	"order_ids": [42, 43]
+}
+```
+
+The IDs are not values from `orders.ref_1c` or `orders.shipment_ref_1c`.
+
+| Operation | Meatshop endpoint | 1C command | Execution | Permission |
+| --- | --- | --- | --- | --- |
+| Print Orders | `POST /api/order/print-1c` | `print_order` | Synchronous `/bin-data` PDF | `order.print1c` |
+| Create shipments | `POST /api/order/create-shipments-1c` | `create_shipments` | Queued, then asynchronous `/execute` | `order.createShipments1c` |
+| Print shipments | `POST /api/order/print-shipment-1c` | `print_shipment` | Synchronous `/bin-data` PDF | `order.printShipment1c` |
+
+The existing `GET /api/order/{id}/print-1c` endpoint remains as a one-Order
+wrapper around `print_order`.
+
+Before any of these operations, every requested Order must exist and have
+`orders.ref_1c.id`. `print_shipment` does not require a local
+`shipment_ref_1c`: its wire contract identifies shipments by local
+`order_ids`. Validation is performed for the complete batch before any request
+is issued.
+
+### 16.1 Queued shipment creation
+
+The shipment flow is:
+
+1. The client posts a non-empty array of unique positive Order IDs.
+2. `OrderService.CreateShipments1C` locks and validates all selected Orders.
+3. It inserts a queued `create_shipments` job and returns `202 Accepted` with
+   `job_id` and `status`.
+4. The generic worker posts the command and numeric ID array to 1C `/execute`.
+5. The attempt and terminal result are written to the integration journal.
+6. `HandleCreateShipments1CResult` consumes a successful response.
+7. Keyed response entries update `orders.shipment_ref_1c`.
+
+An identical active batch resolves to the same queued or processing job. This
+deduplication uses a correlation hash derived from a sorted copy of the IDs; it
+does not reorder the IDs sent to 1C.
+
+The supported keyed result shape is:
+
+```json
+{
+	"success": true,
+	"payload": [
+		{
+			"order_id": 42,
+			"id": "shipment-uuid-42",
+			"descr": "Shipment 42"
+		}
+	]
+}
+```
+
+`order_id` associates each returned 1C reference with its local Order. The
+current mock response has an empty payload. It completes the technical job but
+leaves `orders.shipment_ref_1c` unchanged. This does not block
+`print_shipment`, which sends the same local `order_ids` to 1C.
+
+### 16.2 Synchronous combined PDFs
+
+`print_order` and `print_shipment` are sent directly to `/bin-data`; they do not
+use the PostgreSQL job queue. Each request blocks until 1C returns one PDF.
+Creating one sheet per requested document is handled by 1C, while Meatshop
+validates the PDF and streams the same file to the caller.

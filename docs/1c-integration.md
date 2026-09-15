@@ -197,40 +197,170 @@ The current Order-to-1C workflow is documented separately because it includes au
 
 See [Order creation and synchronization with 1C](order-1c-creation.md).
 
+## Batch order and shipment actions
 
-## Synchronous order print form PDF
+The batch endpoints accept the same strict request body:
 
-An authenticated admin can download the 1C print form for an order that already has `orders.ref_1c`:
+```json
+{
+	"order_ids": [101, 102]
+}
+```
+
+`order_ids` contains local numeric `public.orders.id` values, not 1C UUIDs.
+The array must contain between 1 and 1000 unique positive IDs. The backend
+validates the complete batch before enqueueing a command or contacting 1C and
+preserves the supplied order for the generated PDF sheets.
+
+### Print orders synchronously
+
+The preferred batch endpoint is:
+
+```http
+POST /api/order/print-1c
+```
+
+The single-order compatibility endpoint remains available:
 
 ```http
 GET /api/order/{id}/print-1c
 ```
 
-Permission:
+Both endpoints require permission:
 
 ```text
 order.print1c
 ```
 
-The endpoint uses the local Meatshop order ID. The backend loads `orders.ref_1c.id` and sends the following provisional command to goCOM1c:
+Every selected Order must exist and have a non-empty `orders.ref_1c.id`. The
+single-order endpoint converts its path ID to a one-element array. Both paths
+then send the same command to goCOM1c:
 
 ```json
 {
-  "command": "order_print_form",
-  "params": {
-    "order_id": "document-uuid"
-  }
+	"command": "print_order",
+	"params": {
+		"order_ids": [101, 102]
+	}
 }
 ```
 
-Unlike normal JSON commands, this command is sent to the goCOM1c `/bin-data` endpoint. goCOM1c streams the temporary file returned by 1C as binary data. Meatshop preserves those bytes, verifies that the response is a PDF, and returns it directly to the client with:
+`print_order` is a synchronous binary command sent to `/bin-data`. The HTTP
+request waits for 1C to return one combined PDF. Producing a separate sheet for
+each Order is the responsibility of the 1C command; Meatshop returns the file
+unchanged after verifying that it is a PDF.
+
+The response has no base64 or JSON envelope:
 
 ```text
 Content-Type: application/pdf
-Content-Disposition: attachment; filename="order-123.pdf"
+Content-Disposition: attachment; filename="<1C filename or orders.pdf>"
 Cache-Control: no-store
 ```
 
-There is no base64 or JSON envelope on the Meatshop response. The provisional 1C command name and parameter structure are isolated in `internal/integration1c/order_print.go` so they can be changed when the final 1C procedure contract is known.
+The legacy GET endpoint uses `order-{id}.pdf` as its fallback filename. All
+filenames supplied by 1C are reduced to their basename before being returned.
 
-Migration `000028_order_print_1c` adds the `order.print1c` permission for the `admin` role.
+### Create shipments asynchronously
+
+Shipment creation is explicitly requested with:
+
+```http
+POST /api/order/create-shipments-1c
+```
+
+Permission:
+
+```text
+order.createShipments1c
+```
+
+Every selected Order must exist and have a non-empty `orders.ref_1c.id`. The
+endpoint does not wait for 1C. It stores one `create_shipments` job and returns
+`202 Accepted` with its queue ID and status:
+
+```json
+{
+	"job_id": 123,
+	"status": "queued"
+}
+```
+
+The worker later posts the following command to goCOM1c `/execute`:
+
+```json
+{
+	"command": "create_shipments",
+	"params": {
+		"order_ids": [101, 102]
+	}
+}
+```
+
+An identical active batch reuses its existing queued or processing job. The
+correlation ID is calculated from a sorted copy of the IDs, while the original
+array order remains unchanged in `params`.
+
+The result consumer supports an optional keyed payload:
+
+```json
+{
+	"success": true,
+	"payload": [
+		{
+			"order_id": 101,
+			"id": "shipment-uuid-101",
+			"descr": "Shipment 101"
+		},
+		{
+			"order_id": 102,
+			"id": "shipment-uuid-102",
+			"descr": "Shipment 102"
+		}
+	]
+}
+```
+
+Each valid keyed item updates `orders.shipment_ref_1c` for that local Order.
+The current mock returns `"payload": []`; this is accepted as a successful
+no-op, but it cannot populate `shipment_ref_1c`.
+
+### Print shipments synchronously
+
+Shipment print forms are requested with:
+
+```http
+POST /api/order/print-shipment-1c
+```
+
+Permission:
+
+```text
+order.printShipment1c
+```
+
+Every selected Order must exist and have a non-empty `orders.ref_1c.id`.
+`shipment_ref_1c` is not required because the wire contract identifies
+shipments by local `order_ids`; this also allows the current empty-payload mock
+flow to be printed. Meatshop sends this command to `/bin-data`:
+
+```json
+{
+	"command": "print_shipment",
+	"params": {
+		"order_ids": [101, 102]
+	}
+}
+```
+
+Like `print_order`, this is a synchronous request returning one combined PDF.
+The fallback filename is `shipments.pdf`.
+
+Both print paths buffer the combined PDF in memory. The 1000-ID validation
+ceiling is a safety bound, not a recommended batch size; production batch sizes
+and `integration_1c.timeout` should be chosen for the expected PDF volume.
+
+Migration `000028_order_print_1c` grants `order.print1c` to the `admin` role.
+Migration `000050_order_shipments_1c` adds the two shipment permissions, grants
+them to `admin`, and prevents duplicate active `create_shipments` jobs for the
+same correlation ID.

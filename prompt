@@ -6,10 +6,6 @@ Bind these commands to 1c integration, so they would issue queries to my 1c serv
 Mind that I have modified my backend code since last upload, use it as a source.
 I have added a new field to orders - shipment_ref_1c.
 
-2) I want to add a new field to orders table - shipment_ref_1c jsonb
-I want to modify my order list projection: it should return shipment_ref_1c 
-value. You should add the field to order.yaml file 
-
 Now, please, make my frontend meatshop-admin code compatible with my backend changes:
 Order collection already has an ability to select rows with ctrl+click. I want the
 print command from the collection grid to send an array of selected orders or
@@ -26,3 +22,15 @@ I want you to modify my meatshop-max miniapp. These are the modifications I want
 I want to be able to expand this panel (just like product groups) and see the current order details.
 Order item quantity should be visible and editable. If zero quantity, an item should be removed 
 from the current order.
+3) Modify the registration page: now I have a selctor org/ip, please, remove it,
+leave just inn and app_username. I have already modified my backend for that. Please, check
+and make miniapp contracts the same.
+
+XXX
+I need to load client order history.
+I have this excel table. I think I keep history in orders, so I actually need to create one order
+per customer sale place with items they have ordered so far.
+Customers can be found by inn, and sale place can be identified by inn+address (Точки in excel file)
+Then import products, find them by name. Quantity does not matter here, leave it to 1. The order should be 
+in a "closed" state.
+Make a new migration for this.

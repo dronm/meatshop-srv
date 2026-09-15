@@ -21,14 +21,19 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 		method      string
 		pattern     string
 		serviceFunc string
+		permission  string
+		handler     bool
 	}{
-		"order.create":   {http.MethodPost, "/api/order", "Create"},
-		"order.detail":   {http.MethodGet, "/api/order/{id}", "DocumentDetail"},
-		"order.update":   {http.MethodPut, "/api/order/{id}", "Update"},
-		"order.create1c": {http.MethodPost, "/api/order/{id}/create-1c", "Create1C"},
-		"order.print1c":  {http.MethodGet, "/api/order/{id}/print-1c", ""},
-		"order.delete":   {http.MethodDelete, "/api/order/{id}", "Delete"},
-		"order.list":     {http.MethodGet, "/api/order", "List"},
+		"order.create":            {http.MethodPost, "/api/order", "Create", "order.create", false},
+		"order.detail":            {http.MethodGet, "/api/order/{id}", "DocumentDetail", "order.detail", false},
+		"order.update":            {http.MethodPut, "/api/order/{id}", "Update", "order.update", false},
+		"order.create1c":          {http.MethodPost, "/api/order/{id}/create-1c", "Create1C", "order.create1c", false},
+		"order.print1c":           {http.MethodGet, "/api/order/{id}/print-1c", "", "order.print1c", true},
+		"order.print1c.batch":     {http.MethodPost, "/api/order/print-1c", "", "order.print1c", true},
+		"order.createShipments1c": {http.MethodPost, "/api/order/create-shipments-1c", "CreateShipments1C", "order.createShipments1c", false},
+		"order.printShipment1c":   {http.MethodPost, "/api/order/print-shipment-1c", "", "order.printShipment1c", true},
+		"order.delete":            {http.MethodDelete, "/api/order/{id}", "Delete", "order.delete", false},
+		"order.list":              {http.MethodGet, "/api/order", "List", "order.list", false},
 	}
 
 	found := make(map[string]int, len(want))
@@ -55,13 +60,11 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 				expected.serviceFunc,
 			)
 		}
-		if route.Name == "order.print1c" {
-			if route.Permission != "order.print1c" {
-				t.Errorf("order.print1c permission = %q", route.Permission)
-			}
-			if route.Handler == nil {
-				t.Error("order.print1c handler is nil")
-			}
+		if route.Permission != expected.permission {
+			t.Errorf("route %s permission = %q, want %q", route.Name, route.Permission, expected.permission)
+		}
+		if expected.handler && route.Handler == nil {
+			t.Errorf("route %s handler is nil", route.Name)
 		}
 	}
 
@@ -69,6 +72,79 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 		if found[name] != 1 {
 			t.Errorf("route %s count = %d, want 1", name, found[name])
 		}
+	}
+}
+
+func TestOrderIDsJSONBinder(t *testing.T) {
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/order/print-1c",
+		strings.NewReader(`{"order_ids":[101,102]}`),
+	)
+
+	bound, err := orderIDsJSONBinder()(req)
+	if err != nil {
+		t.Fatalf("order ids binder error = %v", err)
+	}
+	input, ok := bound.(models.OrderIDsRequest)
+	if !ok {
+		t.Fatalf("binder result type = %T", bound)
+	}
+	if len(input.OrderIDs) != 2 || input.OrderIDs[0] != 101 || input.OrderIDs[1] != 102 {
+		t.Fatalf("order_ids = %v", input.OrderIDs)
+	}
+}
+
+func TestOrderIDsJSONBinderRejectsInvalidInput(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "empty object", body: `{}`},
+		{name: "empty array", body: `{"order_ids":[]}`},
+		{name: "zero", body: `{"order_ids":[101,0]}`},
+		{name: "negative", body: `{"order_ids":[-1]}`},
+		{name: "duplicate", body: `{"order_ids":[101,101]}`},
+		{name: "unknown field", body: `{"order_ids":[101],"unknown":true}`},
+		{name: "trailing JSON", body: `{"order_ids":[101]} {}`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/order/print-1c",
+				strings.NewReader(test.body),
+			)
+			if _, err := orderIDsJSONBinder()(req); err == nil {
+				t.Fatalf("body %q was accepted", test.body)
+			}
+		})
+	}
+}
+
+func TestOrderIDsJSONBinderRejectsTooManyOrders(t *testing.T) {
+	body := `{"order_ids":[` + strings.Repeat("1,", order1CActionMaxOrders) + `1]}`
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/order/print-1c",
+		strings.NewReader(body),
+	)
+
+	if _, err := orderIDsJSONBinder()(req); err == nil {
+		t.Fatalf("%d order IDs were accepted", order1CActionMaxOrders+1)
+	}
+}
+
+func TestOrderIDsJSONBinderRejectsOversizedBody(t *testing.T) {
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/order/print-1c",
+		strings.NewReader(strings.Repeat(" ", order1CActionMaxBodySize+1)),
+	)
+
+	if _, err := orderIDsJSONBinder()(req); err == nil {
+		t.Fatal("oversized request body was accepted")
 	}
 }
 

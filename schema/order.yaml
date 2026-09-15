@@ -327,10 +327,8 @@ migration:
     - name: orders_ref_1c_idx
       columns:
         - ref_1c
-        - shipment_ref_1c
 
 # Generated integration tests require full CRUD and concrete values that satisfy
 # all foreign keys in the target database. Enable only after supplying them.
 test:
   enabled: false
-

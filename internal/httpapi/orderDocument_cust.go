@@ -30,6 +30,26 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithBinder(orderDocumentJSONBinder()),
 		webapp.WithSuccessCode(http.StatusCreated),
 	)
+	api.POST(
+		"/order/print-1c",
+		webapp.WithName("order.print1c.batch"),
+		webapp.WithPermission("order.print1c"),
+		webapp.WithHandler(orderBatchPrint1CHandler(deps.DB, deps.Integration1CClient)),
+	)
+	api.POST(
+		"/order/create-shipments-1c",
+		webapp.WithName("order.createShipments1c"),
+		webapp.WithPermission("order.createShipments1c"),
+		webapp.WithService("Order", "CreateShipments1C"),
+		webapp.WithBinder(orderIDsJSONBinder()),
+		webapp.WithSuccessCode(http.StatusAccepted),
+	)
+	api.POST(
+		"/order/print-shipment-1c",
+		webapp.WithName("order.printShipment1c"),
+		webapp.WithPermission("order.printShipment1c"),
+		webapp.WithHandler(shipmentBatchPrint1CHandler(deps.DB, deps.Integration1CClient)),
+	)
 	api.GET(
 		"/order/{id}",
 		webapp.WithName("order.detail"),

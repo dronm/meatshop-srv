@@ -42,6 +42,7 @@ func (s *OrderService) Create(
 				for_date,
 				number_1c,
 				ref_1c,
+				shipment_ref_1c,
 				customer_id,
 				customer_sale_place_id,
 				customer_user_id,
@@ -49,12 +50,13 @@ func (s *OrderService) Create(
 				comment_customer,
 				comment_admin
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			RETURNING id, version
 		`,
 			document.ForDate,
 			document.Number1C,
 			document.Ref1C,
+			document.ShipmentRef1C,
 			document.CustomerID,
 			document.CustomerSalePlaceID,
 			document.CustomerUserID,
@@ -163,12 +165,13 @@ func (s *OrderService) Update(
 				for_date = $2,
 				number_1c = $3,
 				ref_1c = $4,
-				customer_id = $5,
-				customer_sale_place_id = $6,
-				customer_user_id = $7,
-				status_id = $8,
-				comment_customer = $9,
-				comment_admin = $10,
+				shipment_ref_1c = $5,
+				customer_id = $6,
+				customer_sale_place_id = $7,
+				customer_user_id = $8,
+				status_id = $9,
+				comment_customer = $10,
+				comment_admin = $11,
 				version = version + 1
 			WHERE id = $1
 			RETURNING version
@@ -177,6 +180,7 @@ func (s *OrderService) Update(
 			document.ForDate,
 			document.Number1C,
 			document.Ref1C,
+			document.ShipmentRef1C,
 			document.CustomerID,
 			document.CustomerSalePlaceID,
 			document.CustomerUserID,

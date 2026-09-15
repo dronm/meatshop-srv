@@ -2,12 +2,9 @@ package services
 
 import (
 	"context"
-	"errors"
-	"strings"
 
 	"github.com/dronm/ds/v4"
 	integration "github.com/dronm/meatshop/internal/integration1c"
-	"github.com/dronm/meatshop/internal/models"
 	"github.com/dronm/webapp"
 )
 
@@ -15,51 +12,73 @@ func GetOrderPrint1C(
 	ctx context.Context,
 	db ds.Provider,
 	client *integration.Client,
-	id int,
+	orderIDs []int,
 ) (integration.BinaryResponse, error) {
-	if db == nil {
-		return integration.BinaryResponse{}, webapp.Internal("database is not initialized", nil)
+	if err := requireOrder1CDependencies(db, client); err != nil {
+		return integration.BinaryResponse{}, err
 	}
-	if client == nil {
-		return integration.BinaryResponse{}, webapp.Internal("1c integration is not configured", nil)
+	if err := validateOrderIDBatch(orderIDs); err != nil {
+		return integration.BinaryResponse{}, err
 	}
-	if id <= 0 {
-		return integration.BinaryResponse{}, webapp.BadRequest("order id should be positive", nil)
-	}
-
-	order, err := webapp.FetchModel(
+	if err := validateOrdersFor1CAction(
 		ctx,
 		db,
-		models.OrderKey{ID: id},
-		&models.Order{},
-	)
-	if err != nil {
-		if errors.Is(err, ds.ErrNoRows) {
-			return integration.BinaryResponse{}, webapp.NotFound(
-				"order not found",
-				map[string]any{"id": id},
-			)
-		}
-		return integration.BinaryResponse{}, webapp.Internal(
-			"load order for 1c print form",
-			map[string]any{"error": err.Error()},
-		)
+		orderIDs,
+	); err != nil {
+		return integration.BinaryResponse{}, err
 	}
 
-	if order.Ref1C == nil || strings.TrimSpace(order.Ref1C.ID) == "" {
-		return integration.BinaryResponse{}, webapp.BadRequest(
-			"order has no 1c reference",
-			map[string]any{"id": id},
-		)
-	}
-
-	result, err := client.OrderPrintForm(ctx, strings.TrimSpace(order.Ref1C.ID))
+	result, err := client.PrintOrder(ctx, orderIDs)
 	if err != nil {
 		return integration.BinaryResponse{}, webapp.Internal(
-			"1c order print form failed",
+			"1c order print failed",
 			map[string]any{"error": err.Error()},
 		)
 	}
 
 	return result, nil
+}
+
+func GetShipmentPrint1C(
+	ctx context.Context,
+	db ds.Provider,
+	client *integration.Client,
+	orderIDs []int,
+) (integration.BinaryResponse, error) {
+	if err := requireOrder1CDependencies(db, client); err != nil {
+		return integration.BinaryResponse{}, err
+	}
+	if err := validateOrderIDBatch(orderIDs); err != nil {
+		return integration.BinaryResponse{}, err
+	}
+	// The print_shipment wire contract resolves shipments from local order IDs.
+	// A shipment_ref_1c value is therefore useful metadata, but not a request
+	// precondition (the current mock create_shipments response has no references).
+	if err := validateOrdersFor1CAction(
+		ctx,
+		db,
+		orderIDs,
+	); err != nil {
+		return integration.BinaryResponse{}, err
+	}
+
+	result, err := client.PrintShipment(ctx, orderIDs)
+	if err != nil {
+		return integration.BinaryResponse{}, webapp.Internal(
+			"1c shipment print failed",
+			map[string]any{"error": err.Error()},
+		)
+	}
+
+	return result, nil
+}
+
+func requireOrder1CDependencies(db ds.Provider, client *integration.Client) error {
+	if db == nil {
+		return webapp.Internal("database is not initialized", nil)
+	}
+	if client == nil {
+		return webapp.Internal("1c integration is not configured", nil)
+	}
+	return nil
 }

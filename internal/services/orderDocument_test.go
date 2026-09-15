@@ -57,6 +57,22 @@ func TestValidateOrderDocumentRequiresItems(t *testing.T) {
 	}
 }
 
+func TestValidateOrderDocumentNormalizes1CReferences(t *testing.T) {
+	document := validOrderDocument()
+	document.Ref1C = &models.Ref1c{ID: " order-1 ", Descr: " Order 1 "}
+	document.ShipmentRef1C = &models.Ref1c{ID: " shipment-1 ", Descr: " Shipment 1 "}
+
+	if err := validateOrderDocument(document, true, 0); err != nil {
+		t.Fatalf("validateOrderDocument() error = %v", err)
+	}
+	if document.Ref1C.ID != "order-1" || document.Ref1C.Descr != "Order 1" {
+		t.Fatalf("order ref = %#v", document.Ref1C)
+	}
+	if document.ShipmentRef1C.ID != "shipment-1" || document.ShipmentRef1C.Descr != "Shipment 1" {
+		t.Fatalf("shipment ref = %#v", document.ShipmentRef1C)
+	}
+}
+
 func validOrderDocument() *models.OrderDocument {
 	return &models.OrderDocument{
 		ForDate:             time.Date(2026, time.August, 25, 0, 0, 0, 0, time.UTC),
