@@ -33,7 +33,7 @@ fields:
       schema: public
       table: customers
       column: id
-      onDelete: RESTRICT
+      onDelete: CASCADE
       onUpdate: CASCADE
     comment: Customer reference
 
