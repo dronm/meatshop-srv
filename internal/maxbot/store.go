@@ -89,7 +89,7 @@ func (s *Store) SaveUpdate(ctx context.Context, raw json.RawMessage, update Upda
 			VALUES (
 				$1,
 				$2::jsonb,
-				jsonb_build_object('source', 'bot_started', 'update_type', $3)
+				jsonb_build_object('source', 'bot_started', 'update_type', $3::text)
 			)
 		`, update.User.UserID, string(welcome), update.UpdateType); err != nil {
 			return fmt.Errorf("queue MAX welcome message: %w", err)
