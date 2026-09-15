@@ -103,12 +103,10 @@ list:
     - name: customer
       type: json
       goType: "*Ref"
-      nullable: true
 
     - name: customer_sale_place
       type: json
       goType: "*Ref"
-      nullable: true
 
     - name: max_user_id
       type: bigint

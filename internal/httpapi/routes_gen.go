@@ -7,6 +7,8 @@ import "github.com/dronm/webapp"
 func registerGeneratedRoutes(api *webapp.Group) {
 	customerRoutes(api)
 	customerSalePlaceRoutes(api)
+	maxInMessageRoutes(api)
+	maxOutMessageRoutes(api)
 	maxUserRoutes(api)
 	measureUnitRoutes(api)
 	orderCalendarDayRoutes(api)

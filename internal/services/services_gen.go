@@ -5,6 +5,8 @@ package services
 func RegisterGeneratedServices() {
 	RegisterCustomerService()
 	RegisterCustomerSalePlaceService()
+	RegisterMaxInMessageService()
+	RegisterMaxOutMessageService()
 	RegisterMaxUserService()
 	RegisterMeasureUnitService()
 	RegisterOrderService()

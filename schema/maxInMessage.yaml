@@ -1,0 +1,157 @@
+name: MaxInMessage
+comment: MaxInMessage describes a read-only incoming MAX update.
+humanName: incoming MAX message
+humanNamePlural: incoming MAX messages
+
+table:
+  schema: public
+  name: max_in_messages
+  comment: Raw webhook updates received from MAX.
+  checks:
+    - btrim(update_type) <> ''
+    - jsonb_typeof(message) = 'object'
+
+route: /max-in-messages
+permissionPrefix: maxInMessage
+serviceName: MaxInMessage
+sessionRequired: true
+crudNotifications: false
+
+keys:
+  - name: id
+    pathName: id
+    type: bigint
+
+fields:
+  - name: id
+    type: bigint
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: update_type
+    type: text
+    required: true
+    comment: MAX webhook update type.
+
+  - name: max_user_id
+    type: bigint
+    nullable: true
+    comment: Extracted MAX platform user ID, when available.
+
+  - name: max_chat_id
+    type: bigint
+    nullable: true
+    comment: Extracted MAX chat ID, when available.
+
+  - name: message
+    type: jsonb
+    required: true
+    comment: Complete raw MAX webhook update.
+
+  - name: created_at
+    type: timestamptz
+    required: true
+    serverGenerated: true
+    default: "now()"
+    comment: Time at which the webhook update was received.
+
+# Keep collection responses lightweight; the complete update remains available
+# from the detail endpoint.
+list:
+  model: MaxInMessageList
+  table:
+    schema: public
+    name: max_in_messages
+  fields:
+    - name: id
+      type: bigint
+      primaryKey: true
+
+    - name: update_type
+      type: text
+      required: true
+
+    - name: max_user_id
+      type: bigint
+      nullable: true
+
+    - name: max_chat_id
+      type: bigint
+      nullable: true
+
+    - name: created_at
+      type: timestamptz
+      required: true
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+httpRoutes:
+  enabled: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр входящих сообщений MAX
+    detail: Просмотр входящего сообщения MAX
+
+applicationRoute:
+  enabled: true
+  name: maxInMessages
+  path: /max-in-messages
+  description: Входящие сообщения MAX
+  section: Администрирование
+  icon: pi pi-inbox
+  menuAvailable: true
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: true
+  title: Входящие сообщения MAX
+
+  form:
+    enabled: false
+
+  list:
+    enabled: true
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: created_at
+        label: Получено
+        width: 14rem
+
+      - field: update_type
+        label: Тип обновления
+        width: 18rem
+
+      - field: max_user_id
+        label: Идентификатор пользователя MAX
+        width: 14rem
+
+      - field: max_chat_id
+        label: Идентификатор чата MAX
+        width: 14rem
+
+  routes:
+    listName: maxInMessages
+
+# Migration 000033_max_bot_messages owns this table; migration 000053 adds
+# the read API permissions without recreating it.
+migration:
+  enabled: false
+
+test:
+  enabled: false

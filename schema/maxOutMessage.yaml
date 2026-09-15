@@ -1,0 +1,225 @@
+name: MaxOutMessage
+comment: MaxOutMessage describes a read-only outgoing MAX message.
+humanName: outgoing MAX message
+humanNamePlural: outgoing MAX messages
+
+table:
+  schema: public
+  name: max_out_messages
+  comment: Durable outgoing MAX notification queue.
+  checks:
+    - attempt_count >= 0
+    - jsonb_typeof(message) = 'object'
+    - jsonb_typeof(metadata) = 'object'
+    - status IN ('pending', 'sending', 'sent', 'failed')
+
+route: /max-out-messages
+permissionPrefix: maxOutMessage
+serviceName: MaxOutMessage
+sessionRequired: true
+crudNotifications: false
+
+keys:
+  - name: id
+    pathName: id
+    type: bigint
+
+fields:
+  - name: id
+    type: bigint
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: max_user_id
+    type: bigint
+    required: true
+    references:
+      schema: public
+      table: max_users
+      column: max_user_id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+    comment: MAX platform user ID.
+
+  - name: message
+    type: jsonb
+    required: true
+    comment: Complete MAX message request body.
+
+  - name: metadata
+    type: jsonb
+    required: true
+    default: "'{}'::jsonb"
+    comment: Application metadata associated with the message.
+
+  - name: status
+    type: text
+    required: true
+    default: "'pending'"
+    comment: "Queue state: pending, sending, sent, or failed."
+
+  - name: attempt_count
+    type: int
+    required: true
+    default: "0"
+    comment: Number of delivery attempts.
+
+  - name: next_attempt_at
+    type: timestamptz
+    nullable: true
+    comment: Time at which the next delivery attempt may start.
+
+  - name: locked_at
+    type: timestamptz
+    nullable: true
+    comment: Time at which a sender claimed the message.
+
+  - name: sent_at
+    type: timestamptz
+    nullable: true
+    comment: Time at which the message was sent successfully.
+
+  - name: created_at
+    type: timestamptz
+    required: true
+    serverGenerated: true
+    default: "now()"
+    comment: Time at which the outgoing message was queued.
+
+  - name: error_str
+    type: text
+    nullable: true
+    comment: Last delivery error.
+
+# Keep collection responses lightweight; full JSON payloads remain available
+# from the detail endpoint.
+list:
+  model: MaxOutMessageList
+  table:
+    schema: public
+    name: max_out_messages
+  fields:
+    - name: id
+      type: bigint
+      primaryKey: true
+
+    - name: max_user_id
+      type: bigint
+      required: true
+
+    - name: status
+      type: text
+      required: true
+
+    - name: attempt_count
+      type: int
+      required: true
+
+    - name: next_attempt_at
+      type: timestamptz
+      nullable: true
+
+    - name: locked_at
+      type: timestamptz
+      nullable: true
+
+    - name: sent_at
+      type: timestamptz
+      nullable: true
+
+    - name: created_at
+      type: timestamptz
+      required: true
+
+    - name: error_str
+      type: text
+      nullable: true
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+httpRoutes:
+  enabled: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр исходящих сообщений MAX
+    detail: Просмотр исходящего сообщения MAX
+
+applicationRoute:
+  enabled: true
+  name: maxOutMessages
+  path: /max-out-messages
+  description: Исходящие сообщения MAX
+  section: Администрирование
+  icon: pi pi-send
+  menuAvailable: true
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: true
+  title: Исходящие сообщения MAX
+
+  form:
+    enabled: false
+
+  list:
+    enabled: true
+    pageSize: 30
+    columns:
+      - field: id
+        label: ID
+        width: 8rem
+
+      - field: created_at
+        label: Создано
+        width: 14rem
+
+      - field: max_user_id
+        label: Идентификатор пользователя MAX
+        width: 14rem
+
+      - field: status
+        label: Статус
+        width: 10rem
+
+      - field: attempt_count
+        label: Попытки
+        width: 8rem
+
+      - field: next_attempt_at
+        label: Следующая попытка
+        width: 14rem
+
+      - field: locked_at
+        label: Заблокировано
+        width: 14rem
+
+      - field: sent_at
+        label: Отправлено
+        width: 14rem
+
+      - field: error_str
+        label: Ошибка
+        width: 30rem
+
+  routes:
+    listName: maxOutMessages
+
+# Migration 000033_max_bot_messages owns this table; migration 000053 adds
+# the read API permissions without recreating it.
+migration:
+  enabled: false
+
+test:
+  enabled: false
