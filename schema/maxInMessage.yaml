@@ -62,7 +62,7 @@ list:
   model: MaxInMessageList
   table:
     schema: public
-    name: max_in_messages
+    name: max_in_messages_list
   fields:
     - name: id
       type: bigint
@@ -74,6 +74,11 @@ list:
 
     - name: max_user_id
       type: bigint
+      nullable: true
+
+    - name: max_user
+      type: json
+      goType: "*Ref"
       nullable: true
 
     - name: max_chat_id
@@ -137,9 +142,10 @@ frontend:
         label: Тип обновления
         width: 18rem
 
-      - field: max_user_id
-        label: Идентификатор пользователя MAX
-        width: 14rem
+      - field: max_user
+        label: Пользователь MAX
+        width: 24rem
+        sortable: false
 
       - field: max_chat_id
         label: Идентификатор чата MAX

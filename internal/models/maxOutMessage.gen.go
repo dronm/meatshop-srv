@@ -42,12 +42,13 @@ func (m MaxOutMessage) CollectionAgg() any {
 	return &wmodels.TotCount{TotCount: 0}
 }
 
-const maxOutMessageListRelation = "public.max_out_messages"
+const maxOutMessageListRelation = "public.max_out_messages_list"
 
 // MaxOutMessageList is the collection projection for outgoing MAX messages.
 type MaxOutMessageList struct {
 	ID            int64      `json:"id" primaryKey:"true"`
 	MaxUserID     int64      `json:"max_user_id" required:"true"`
+	MaxUser       *Ref       `json:"max_user"`
 	Status        string     `json:"status" required:"true"`
 	AttemptCount  int        `json:"attempt_count" required:"true"`
 	NextAttemptAt *time.Time `json:"next_attempt_at"`

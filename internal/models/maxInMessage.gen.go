@@ -32,13 +32,14 @@ func (m MaxInMessage) CollectionAgg() any {
 	return &wmodels.TotCount{TotCount: 0}
 }
 
-const maxInMessageListRelation = "public.max_in_messages"
+const maxInMessageListRelation = "public.max_in_messages_list"
 
 // MaxInMessageList is the collection projection for incoming MAX messages.
 type MaxInMessageList struct {
 	ID         int64     `json:"id" primaryKey:"true"`
 	UpdateType string    `json:"update_type" required:"true"`
 	MaxUserID  *int64    `json:"max_user_id"`
+	MaxUser    *Ref      `json:"max_user"`
 	MaxChatID  *int64    `json:"max_chat_id"`
 	CreatedAt  time.Time `json:"created_at" required:"true"`
 }

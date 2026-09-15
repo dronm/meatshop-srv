@@ -98,7 +98,7 @@ list:
   model: MaxOutMessageList
   table:
     schema: public
-    name: max_out_messages
+    name: max_out_messages_list
   fields:
     - name: id
       type: bigint
@@ -107,6 +107,10 @@ list:
     - name: max_user_id
       type: bigint
       required: true
+
+    - name: max_user
+      type: json
+      goType: "*Ref"
 
     - name: status
       type: text
@@ -185,9 +189,10 @@ frontend:
         label: Создано
         width: 14rem
 
-      - field: max_user_id
-        label: Идентификатор пользователя MAX
-        width: 14rem
+      - field: max_user
+        label: Пользователь MAX
+        width: 24rem
+        sortable: false
 
       - field: status
         label: Статус
