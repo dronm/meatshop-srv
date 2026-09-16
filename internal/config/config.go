@@ -74,7 +74,6 @@ type MAXConfig struct {
 	HTTPAddr                      string `json:"http_addr"`
 	WebhookSecret                 string `json:"webhook_secret"`
 	WebhookURL                    string `json:"webhook_url"`
-	MiniAppURL                    string `json:"mini_app_url"`
 	InitDataMaxAge                string `json:"init_data_max_age"`
 	SenderPollInterval            string `json:"sender_poll_interval"`
 	SenderNotifyReconnectInterval string `json:"sender_notify_reconnect_interval"`

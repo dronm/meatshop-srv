@@ -53,6 +53,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	botInfoCtx, botInfoCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	botInfo, err := client.GetMe(botInfoCtx)
+	botInfoCancel()
+	if err != nil {
+		return err
+	}
+	slog.Info("MAX bot identified", "bot_id", botInfo.UserID)
+
 	if cfg.MAX.WebhookURL != "" {
 		webhookCtx, webhookCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		if err := client.ConfigureWebhook(webhookCtx, cfg.MAX.WebhookURL, cfg.MAX.WebhookSecret); err != nil {
@@ -63,7 +71,7 @@ func run() error {
 		slog.Info("MAX webhook subscription configured", "url", cfg.MAX.WebhookURL)
 	}
 	store := maxbot.NewStore(pool)
-	handler, err := maxbot.NewHandler(store, cfg.MAX.WebhookSecret, cfg.MAX.MiniAppURL)
+	handler, err := maxbot.NewHandler(store, cfg.MAX.WebhookSecret, botInfo.UserID)
 	if err != nil {
 		return err
 	}

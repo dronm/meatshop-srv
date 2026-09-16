@@ -79,12 +79,11 @@
     }
   },
   "max": {
-    "bot_token": "f9LHodD0cOIYfuVsY6ySd1OrszxpyXhIpIq8r44kQqnbp_L-Nk_6X82CzS9ke5tI_EcyeZ3edjjDRfzFh-5t",
+    "bot_token": "f9LHodD0cOISCmWEjfnP2Nbehz7_3S5DLUCS-kEBCxzapNLck3agMPLhpE8xSBmIaafQKQIbee6SZvCNvU5M", 
     "init_data_max_age": "0s",
     "http_addr": "localhost:59001",
     "webhook_url": "https://178.46.157.185/meatshop-max-webhook",
-    "webhook_secret": "3d13fa7bc94182561eb6eec6ff89747c44514ce5c687967d7e716a27e8a89a01",
-    "mini_app_url": "https://178.46.157.185/meatshop-max-app",
+    "webhook_secret": "04e6f17e6c12488d8fd96fc3c7c453ff",
     "sender_poll_interval": "2s",
     "sender_notify_reconnect_interval": "5s",
     "sender_lock_timeout": "1m",

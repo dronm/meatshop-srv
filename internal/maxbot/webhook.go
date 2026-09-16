@@ -14,19 +14,19 @@ const maxWebhookBodySize = 1 << 20
 type Handler struct {
 	Store       *Store
 	Secret      string
-	MiniAppURL  string
+	BotID       int64
 	welcomeBody json.RawMessage
 }
 
-func NewHandler(store *Store, secret, miniAppURL string) (*Handler, error) {
-	welcome, err := BuildWelcomeMessage(miniAppURL)
+func NewHandler(store *Store, secret string, botID int64) (*Handler, error) {
+	welcome, err := BuildWelcomeMessage(botID)
 	if err != nil {
 		return nil, err
 	}
 	return &Handler{
 		Store:       store,
 		Secret:      strings.TrimSpace(secret),
-		MiniAppURL:  strings.TrimSpace(miniAppURL),
+		BotID:       botID,
 		welcomeBody: welcome,
 	}, nil
 }

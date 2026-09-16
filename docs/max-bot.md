@@ -20,7 +20,6 @@ On `bot_started`, the webhook transaction also upserts `public.max_users` and qu
     "http_addr": "127.0.0.1:59001",
     "webhook_url": "https://example.ru/max/webhook",
     "webhook_secret": "...",
-    "mini_app_url": "",
     "init_data_max_age": "1h",
     "sender_poll_interval": "2s",
     "sender_notify_reconnect_interval": "5s",
@@ -34,7 +33,9 @@ On `bot_started`, the webhook transaction also upserts `public.max_users` and qu
 
 When `webhook_url` is non-empty, `cmd/max` configures the MAX webhook subscription on startup. Leaving `update_types` unspecified subscribes to all update types.
 
-`mini_app_url` is optional. When omitted, the `open_app` button relies on the Mini App configured for the bot in MAX. When set, it is sent as the `web_app` field of the button.
+On startup, `cmd/max` obtains the current bot ID from `GET /me`. The welcome
+message uses that ID as the `contact_id` of its `open_app` button. Configure the
+Mini App frontend URL in MAX Partner Settings; it is not a bot API button field.
 
 ## Mini-app customer registration
 

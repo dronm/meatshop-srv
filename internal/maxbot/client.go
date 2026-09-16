@@ -24,6 +24,10 @@ type Client struct {
 	http  *http.Client
 }
 
+type BotInfo struct {
+	UserID int64 `json:"user_id"`
+}
+
 type APIError struct {
 	StatusCode int
 	Body       string
@@ -42,6 +46,40 @@ func NewClient(token string) (*Client, error) {
 		token: token,
 		http:  &http.Client{Timeout: 15 * time.Second},
 	}, nil
+}
+
+func (c *Client) GetMe(ctx context.Context) (BotInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBaseURL+"/me", nil)
+	if err != nil {
+		return BotInfo{}, err
+	}
+	req.Header.Set("Authorization", c.token)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return BotInfo{}, fmt.Errorf("get MAX bot info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return BotInfo{}, fmt.Errorf("read MAX bot info response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return BotInfo{}, &APIError{
+			StatusCode: resp.StatusCode,
+			Body:       strings.TrimSpace(string(responseBody)),
+		}
+	}
+
+	var bot BotInfo
+	if err := json.Unmarshal(responseBody, &bot); err != nil {
+		return BotInfo{}, fmt.Errorf("decode MAX bot info response: %w", err)
+	}
+	if bot.UserID <= 0 {
+		return BotInfo{}, fmt.Errorf("MAX bot info response does not contain a valid user_id")
+	}
+	return bot, nil
 }
 
 func (c *Client) ConfigureWebhook(ctx context.Context, webhookURL, secret string) error {
@@ -121,13 +159,14 @@ func (c *Client) SendMessage(ctx context.Context, userID int64, body json.RawMes
 	return nil
 }
 
-func BuildWelcomeMessage(miniAppURL string) (json.RawMessage, error) {
-	button := map[string]any{
-		"type": "open_app",
-		"text": OpenAppText,
+func BuildWelcomeMessage(botID int64) (json.RawMessage, error) {
+	if botID <= 0 {
+		return nil, fmt.Errorf("MAX bot id should be positive")
 	}
-	if value := strings.TrimSpace(miniAppURL); value != "" {
-		button["web_app"] = value
+	button := map[string]any{
+		"type":       "open_app",
+		"text":       OpenAppText,
+		"contact_id": botID,
 	}
 
 	body := map[string]any{
