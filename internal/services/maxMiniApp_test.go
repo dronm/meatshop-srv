@@ -51,18 +51,21 @@ func TestValidateMaxInitDataRejectsChangedData(t *testing.T) {
 func TestInitialMaxUsernames(t *testing.T) {
 	tests := []struct {
 		name            string
-		value           *string
+		username        *string
+		firstName       string
 		wantUsername    *string
 		wantAppUsername string
 	}{
 		{name: "missing", wantAppUsername: defaultMaxAppUsername},
-		{name: "blank", value: stringPointer(" \t "), wantAppUsername: defaultMaxAppUsername},
-		{name: "trimmed", value: stringPointer(" max-user "), wantUsername: stringPointer("max-user"), wantAppUsername: "max-user"},
+		{name: "blank", username: stringPointer(" \t "), firstName: "  ", wantAppUsername: defaultMaxAppUsername},
+		{name: "first name fallback", firstName: " Max User ", wantAppUsername: "Max User"},
+		{name: "blank username uses first name", username: stringPointer(" \t "), firstName: " Max User ", wantAppUsername: "Max User"},
+		{name: "username takes precedence", username: stringPointer(" max-user "), firstName: "Max User", wantUsername: stringPointer("max-user"), wantAppUsername: "max-user"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			username, appUsername := initialMaxUsernames(test.value)
+			username, appUsername := initialMaxUsernames(test.username, test.firstName)
 			if !optionalStringsEqual(username, test.wantUsername) {
 				t.Fatalf("initialMaxUsernames() username = %#v, want %#v", username, test.wantUsername)
 			}

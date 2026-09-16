@@ -93,7 +93,7 @@ func (s *MaxMiniAppService) SessionStart(ctx context.Context, input models.MaxSe
 	var username *string
 	var appUsername string
 	var customerID, salePlaceID *int
-	initialUsername, initialAppUsername := initialMaxUsernames(user.Username)
+	initialUsername, initialAppUsername := initialMaxUsernames(user.Username, user.FirstName)
 	if err := poolConn.Conn().QueryRow(ctx, `
 		INSERT INTO public.max_users (
 			max_user_id,
@@ -820,12 +820,15 @@ func normalizedOptionalString(value *string) *string {
 	return &trimmed
 }
 
-func initialMaxUsernames(value *string) (*string, string) {
-	username := normalizedOptionalString(value)
-	if username == nil {
-		return nil, defaultMaxAppUsername
+func initialMaxUsernames(usernameValue *string, firstName string) (*string, string) {
+	username := normalizedOptionalString(usernameValue)
+	if username != nil {
+		return username, *username
 	}
-	return username, *username
+	if normalizedFirstName := normalizedOptionalString(&firstName); normalizedFirstName != nil {
+		return nil, *normalizedFirstName
+	}
+	return nil, defaultMaxAppUsername
 }
 
 func validateMaxCustomerLookup(input models.MaxCustomerLookupRequest) (string, string, error) {

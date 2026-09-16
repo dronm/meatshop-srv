@@ -59,9 +59,10 @@ user selects a sale place. `POST /api/max/registration` then saves the customer,
 default sale place, and application username together.
 
 Before registration, a newly discovered MAX user receives an initial
-`app_username` from the MAX platform username. If MAX does not provide a
-username, `Не задано` is used. Completing registration replaces this provisional
-value, and subsequent MAX session or bot updates preserve the registered name.
+`app_username` from the MAX platform username, then from `first_name` when the
+username is absent. If both values are empty, `Не задано` is used. Completing
+registration replaces this provisional value, and subsequent MAX session or bot
+updates preserve the registered name.
 
 ## Admin notifications
 

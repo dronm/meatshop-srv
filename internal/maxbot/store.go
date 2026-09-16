@@ -71,7 +71,7 @@ func (s *Store) SaveUpdate(ctx context.Context, raw json.RawMessage, update Upda
 		`,
 			update.User.UserID,
 			normalized(update.User.Username),
-			initialAppUsername(update.User.Username),
+			initialAppUsername(update.User.Username, update.User.FirstName),
 			string(rawUser),
 		); err != nil {
 			return fmt.Errorf("upsert MAX user from bot_started: %w", err)
@@ -203,12 +203,15 @@ func (s *Store) MarkFailed(ctx context.Context, id int64, sendErr error) error {
 	return nil
 }
 
-func initialAppUsername(username *string) string {
+func initialAppUsername(username *string, firstName string) string {
 	normalizedUsername := normalized(username)
-	if normalizedUsername == nil {
-		return "Не задано"
+	if normalizedUsername != nil {
+		return *normalizedUsername
 	}
-	return *normalizedUsername
+	if normalizedFirstName := normalized(&firstName); normalizedFirstName != nil {
+		return *normalizedFirstName
+	}
+	return "Не задано"
 }
 
 func extractRawUser(raw json.RawMessage) (json.RawMessage, error) {
