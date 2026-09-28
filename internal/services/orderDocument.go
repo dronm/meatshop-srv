@@ -173,7 +173,12 @@ func fetchOrderDetail(
 			item.measure_unit_id,
 			measure_units_ref(measure_unit) AS measure_unit,
 			item.quant_required::double precision,
-			item.quant::double precision
+			item.quant::double precision,
+			item.price::text,
+			item.amount::text,
+			item.vat_percent::text,
+			item.vat_amount::text,
+			COALESCE(item.use_marking, FALSE)
 		FROM public.orders AS orders
 		JOIN public.customers AS customer
 			ON customer.id = orders.customer_id
@@ -209,6 +214,8 @@ func fetchOrderDetail(
 		var itemID, lineNum, productID, measureUnitID *int
 		var product, measureUnit *models.Ref
 		var quantRequired, quant *float64
+		var price, amount, vatPercent, vatAmount *string
+		var useMarking bool
 
 		if err := rows.Scan(
 			&documentID,
@@ -235,6 +242,11 @@ func fetchOrderDetail(
 			&measureUnit,
 			&quantRequired,
 			&quant,
+			&price,
+			&amount,
+			&vatPercent,
+			&vatAmount,
+			&useMarking,
 		); err != nil {
 			return nil, err
 		}
@@ -271,6 +283,11 @@ func fetchOrderDetail(
 				MeasureUnit:   measureUnit,
 				QuantRequired: *quantRequired,
 				Quant:         *quant,
+				Price:         price,
+				Amount:        amount,
+				VatPercent:    vatPercent,
+				VatAmount:     vatAmount,
+				UseMarking:    useMarking,
 			})
 		}
 	}

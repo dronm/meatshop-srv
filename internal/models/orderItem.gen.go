@@ -23,6 +23,16 @@ type OrderItem struct {
 	QuantRequired float64 `json:"quant_required" required:"true"`
 	// Product quantity.
 	Quant float64 `json:"quant" required:"true"`
+	// Unit price.
+	Price *float64 `json:"price"`
+	// Line amount with VAT.
+	Amount *float64 `json:"amount"`
+	// Line VAT percent.
+	VatPercent *float64 `json:"vat_percent"`
+	// Line VAT amount.
+	VatAmount *float64 `json:"vat_amount"`
+	// Line use marking flag.
+	UseMarking bool `json:"use_marking" required:"true"`
 }
 
 func (m OrderItem) Relation() string {

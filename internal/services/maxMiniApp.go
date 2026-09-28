@@ -942,7 +942,9 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 			o.comment_customer,
 			oi.id, oi.product_id, p.name, oi.measure_unit_id,
 			CASE WHEN unit.id IS NULL THEN NULL ELSE jsonb_build_object('keys', jsonb_build_object('id', unit.id), 'descr', unit.name) END,
-			oi.quant_required::double precision, COALESCE(oi.quant, 0)::double precision
+			oi.quant_required::double precision, COALESCE(oi.quant, 0)::double precision,
+			oi.price::text, oi.amount::text, oi.vat_percent::text, oi.vat_amount::text,
+			COALESCE(oi.use_marking, FALSE)
 		FROM public.orders o
 		JOIN public.order_statuses st ON st.id = o.status_id
 		JOIN public.customers c ON c.id = o.customer_id
@@ -973,10 +975,13 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 		var customerUser, measureUnit *models.Ref
 		var comment *string
 		var quantReq, quant *float64
+		var price, amount, vatPercent, vatAmount *string
+		var useMarking bool
 		var scannedOrderID int
 		if err := rows.Scan(&scannedOrderID, &version, &forDate, &number1C, &ref1C, &statusCode, &statusName,
 			&customerIDVal, &customerRef.Descr, &salePlaceID, &salePlaceRef.Descr, &customerUser, &comment,
-			&itemID, &productID, &itemProductName, &measureUnitID, &measureUnit, &quantReq, &quant); err != nil {
+			&itemID, &productID, &itemProductName, &measureUnitID, &measureUnit, &quantReq, &quant,
+			&price, &amount, &vatPercent, &vatAmount, &useMarking); err != nil {
 			return nil, err
 		}
 		orderID = &scannedOrderID
@@ -991,7 +996,13 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 			if itemProductName != nil {
 				product.Descr = *itemProductName
 			}
-			result.Items = append(result.Items, &models.MaxOrderItem{ID: *itemID, ProductID: *productID, Product: product, MeasureUnitID: *measureUnitID, MeasureUnit: measureUnit, QuantRequired: *quantReq, Quant: *quant})
+			result.Items = append(result.Items, &models.MaxOrderItem{
+				ID: *itemID, ProductID: *productID, Product: product,
+				MeasureUnitID: *measureUnitID, MeasureUnit: measureUnit,
+				QuantRequired: *quantReq, Quant: *quant,
+				Price: price, Amount: amount, VatPercent: vatPercent, VatAmount: vatAmount,
+				UseMarking: useMarking,
+			})
 		}
 	}
 	if err := rows.Err(); err != nil {

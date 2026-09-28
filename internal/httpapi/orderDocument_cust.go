@@ -22,6 +22,13 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithService("Order", "List"),
 		webapp.WithBinder(webapp.CollectionParamsBinder()),
 	)
+	api.GET(
+		"/order/lines",
+		webapp.WithName("order.lines.list"),
+		webapp.WithPermission("order.list"),
+		webapp.WithService("Order", "LinesList"),
+		webapp.WithBinder(webapp.CollectionParamsBinder()),
+	)
 	api.POST(
 		"/order",
 		webapp.WithName("order.create"),

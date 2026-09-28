@@ -10,7 +10,7 @@ table:
   checks:
     - line_num > 0
     - quant_required > 0
-    - quant > 0
+    - quant >= 0
 
 route: /order-items
 permissionPrefix: orderItem
@@ -79,6 +79,37 @@ fields:
     sqlType: numeric(19, 4)
     required: true
     comment: Product quantity.
+
+  - name: price
+    type: numeric
+    sqlType: numeric(19, 6)
+    nullable: true
+    comment: Unit price.
+
+  - name: amount
+    type: numeric
+    sqlType: numeric(15, 2)
+    nullable: true
+    comment: Line amount with VAT.
+
+  - name: vat_percent
+    type: numeric
+    sqlType: numeric(5, 2)
+    nullable: true
+    comment: Line VAT percent.
+
+  - name: vat_amount
+    type: numeric
+    sqlType: numeric(15, 2)
+    nullable: true
+    comment: Line VAT amount.
+
+  - name: use_marking
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Line use marking flag.
 
 crud:
   create: false

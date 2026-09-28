@@ -1,0 +1,57 @@
+$c = New-Object -ComObject V83.COMConnector;
+
+$db = $c.Connect(
+	'File="C:\Users\Andrey\Documents\buh30";Usr="bereg";Pwd="bereg"'
+);
+panic: failed to create COM pool: failed to create initial connection: failed to initialize COM connection 0: 1C Connection
+failed : Ошибка загрузки библиотеки.
+
+goroutine 1 [running]:
+main.main()
+	srv1c.go:43 +0x317
+What instructions should I give to the administrator to debug the issue?
+
+
+Какая-то беда с COM, возможно не видит регистрацию COM объекта 1с, надо протестить сначала без программы,
+просто в PowerShell
+
+Сперва попробовать просто COM
+$c = New-Object -ComObject V83.COMConnector;
+$c;
+
+Попробовать с настройками базы:
+$db = $c.Connect(
+	'File=\"D:\\1c_base\\iptrusovd\";Usr=\"1C_USER\";Pwd=\"1C_PASSWORD\"'
+);
+
+Чтобы проверить конкретную зарегистрированную версию 1с:
+
+$clsid = Get-ItemPropertyValue `
+	"Registry::HKEY_CLASSES_ROOT\V83.COMConnector\CLSID" `
+	-Name "(default)";
+
+$clsid;
+
+$comDll = Get-ItemPropertyValue `
+	"Registry::HKEY_CLASSES_ROOT\CLSID\$clsid\InprocServer32" `
+	-Name "(default)";
+
+$comDll;
+
+(Get-Item $comDll).VersionInfo |
+	Select-Object FileVersion, ProductVersion;
+	
+	
+Проверить установленные версии 1с:
+
+Get-ChildItem "C:\Program Files\1cv8" -Directory -ErrorAction SilentlyContinue |
+	Select-Object Name, FullName |
+	Sort-Object Name;
+
+Get-ChildItem "C:\Program Files (x86)\1cv8" -Directory -ErrorAction SilentlyContinue |
+	Select-Object Name, FullName |
+	Sort-Object Name;	
+	
+	
+Попробовать зарегистрировать 1c нужной версии, через cmd с правами админа 
+regsvr32 "C:\Program Files\1cv8\ВЕРСИЯ\bin\comcntr.dll"	

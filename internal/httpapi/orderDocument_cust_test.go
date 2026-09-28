@@ -34,6 +34,7 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 		"order.printShipment1c":   {http.MethodPost, "/api/order/print-shipment-1c", "", "order.printShipment1c", true},
 		"order.delete":            {http.MethodDelete, "/api/order/{id}", "Delete", "order.delete", false},
 		"order.list":              {http.MethodGet, "/api/order", "List", "order.list", false},
+		"order.lines.list":        {http.MethodGet, "/api/order/lines", "LinesList", "order.list", false},
 	}
 
 	found := make(map[string]int, len(want))

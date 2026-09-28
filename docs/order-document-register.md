@@ -13,6 +13,7 @@ Endpoints:
 - `PUT /api/order/{id}` replaces the editable header fields and synchronizes the complete `items` array. Existing rows keep their ids, omitted rows are deleted, and rows with `id = 0`/no id are inserted.
 - `DELETE /api/order/{id}` deletes the order and removes its register actions in the same transaction.
 - `GET /api/order` remains the generated collection endpoint based on `orders_list`.
+- `GET /api/order/lines` lists one row per item from `order_lines_list`, with collection filtering, sorting, pagination, and the existing `order.list` permission. It returns `id` (the parent order ID), `shipment_ref_1c`, `customer`, `customer_sale_place`, `product`, `quant`, `price`, `amount`, `vat_amount`, `use_marking`, `item_id`, `line_num`, and `ref_1c`. The `id` may repeat across lines; `item_id` uniquely identifies each displayed row. Sort by `id`, `line_num`, and `item_id` for stable pagination.
 
 Create and update accept the writable `OrderDocument` command model and return
 the saved `OrderDetail` projection. This keeps client-supplied reference labels

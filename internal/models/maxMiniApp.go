@@ -116,6 +116,11 @@ type MaxOrderItem struct {
 	MeasureUnit   *Ref    `json:"measure_unit,omitempty"`
 	QuantRequired float64 `json:"quant_required"`
 	Quant         float64 `json:"quant"`
+	Price         *string `json:"price"`
+	Amount        *string `json:"amount"`
+	VatPercent    *string `json:"vat_percent"`
+	VatAmount     *string `json:"vat_amount"`
+	UseMarking    bool    `json:"use_marking"`
 }
 
 type MaxOrderDetail struct {

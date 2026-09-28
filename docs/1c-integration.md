@@ -197,6 +197,49 @@ The current Order-to-1C workflow is documented separately because it includes au
 
 See [Order creation and synchronization with 1C](order-1c-creation.md).
 
+New `create_order` requests include the local `order_id` and `order_version`.
+Every new `params.products` entry includes its own `order_item_id`, the 1C product
+`id`, and `quant`. Echo `order_item_id` in the matching response item even if
+the same product occurs in several lines. A successful response can supply
+the order's `id`, `descr`, `number_1c` and line values:
+
+```json
+{
+	"success": true,
+	"payload": {
+		"id": "1c-order-uuid",
+		"descr": "Заказ покупателя 000001",
+		"number_1c": "000001",
+		"items": [
+			{
+				"order_item_id": 987,
+				"price": "120.500000",
+				"amount": "241.00",
+				"vat_percent": "20.00",
+				"vat_amount": "40.17",
+				"use_marking": true
+			}
+		]
+	}
+}
+```
+
+The four monetary values are exact decimal strings. `amount` includes VAT,
+`vat_percent` comes from 1C explicitly, and `use_marking` is a JSON boolean
+on every new response line. A present `items` array must
+identify every local line exactly once; an incomplete or invalid array is
+consumed without applying any header or line values. New requests contain
+`order_item_id` and require `items` in the response. A header-only response
+is accepted only for an older saved request without line IDs; it can update
+`ref_1c` and `number_1c`, leaving line values `NULL`. A versioned result is
+applied only if the Order's current version matches and its job is the latest
+for that Order version. A legacy unversioned result can apply only to an
+unedited version 1 Order with no versioned v1 job. Order edits and manual sync
+requests clear existing line monetary values and reset `use_marking` to
+`false` while a new 1C result is pending. New jobs carry
+`result_schema_version: 2` in queue metadata and require an explicit flag.
+For an older queued job without the marker, an omitted flag defaults to `false`.
+
 ## Batch order and shipment actions
 
 The batch endpoints accept the same strict request body:

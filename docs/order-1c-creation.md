@@ -12,6 +12,9 @@ The relevant code is concentrated in:
 - `cmd/meatshop/integration1cworker.go` — project-specific worker wiring and stale-version guard;
 - `migrations/000026_integration_1c_queue.up.sql` — queue/journal tables and notifications;
 - `migrations/000027_order_create_1c.up.sql` — active-job uniqueness and permission.
+- `migrations/000057_order_items_use_marking.up.sql` and
+  `000058_order_items_use_marking_not_null.up.sql` — add the marking flag and
+  enforce its required database value.
 
 ## 1. High-level flow
 
@@ -39,7 +42,8 @@ sequenceDiagram
 
     RC->>DB: Lock unconsumed result
     RC->>RC: HandleCreateOrder1CResult
-    RC->>DB: UPDATE orders.ref_1c
+    RC->>DB: Lock Order and check version
+    RC->>DB: UPDATE orders.ref_1c, number_1c and order_items prices/VAT
     RC->>DB: Mark result consumed
 ```
 
@@ -47,7 +51,7 @@ The user-facing Order request is synchronous only with respect to the **local da
 
 ## 2. Where synchronization starts
 
-There are three entry paths.
+There are four entry paths.
 
 ### 2.1 Admin Order create
 
@@ -178,6 +182,7 @@ order customer has no 1c reference
 
 ```sql
 SELECT
+    item.id,
     item.line_num,
     product.ref_1c->>'id',
     COALESCE(item.quant, item.quant_required)::double precision
@@ -190,9 +195,16 @@ ORDER BY item.line_num, item.id;
 For every row:
 
 - `products.ref_1c->>'id'` must be non-empty;
+- `item.id` is sent as `order_item_id` to identify the exact line in the response;
 - quantity sent to 1C is `COALESCE(item.quant, item.quant_required)`.
 
-In normal Order validation `quant` is filled from `quant_required` when `quant <= 0`, so saved document rows normally have a positive `quant`.
+The line ID is needed because the same product can appear in more than one
+Order item. A product's 1C ID alone cannot associate returned prices with a
+particular local line.
+
+The current schema permits `quant = 0`, and `COALESCE` uses that zero rather
+than substituting `quant_required`. The 1C implementation must handle a
+zero-quantity line if one is submitted.
 
 The helper also rejects an Order with no item rows.
 
@@ -207,6 +219,7 @@ The backend creates `integration1c.CreateOrderParams` from `internal/integration
   "customer_id": "customer-1c-uuid",
   "products": [
     {
+      "order_item_id": 987,
       "id": "product-1c-uuid",
       "quant": 2.5
     }
@@ -220,7 +233,9 @@ The command name is:
 create_order
 ```
 
-The Order ID and Order version are therefore sent to the 1C gateway as command parameters in the current implementation.
+The Order ID and Order version are sent to the 1C gateway as command
+parameters. `order_item_id` belongs to the local Order line and must be echoed
+by 1C in that line's returned values.
 
 ### 3.5 Metadata and correlation ID
 
@@ -230,9 +245,13 @@ The job gets project metadata:
 {
   "entity": "order",
   "order_id": 42,
-  "order_version": 3
+  "order_version": 3,
+  "result_schema_version": 2
 }
 ```
+
+The result schema version belongs to queue metadata; it is not sent to 1C.
+Older queued jobs have no version marker.
 
 Its correlation ID is:
 
@@ -257,6 +276,17 @@ Migration `000027_order_create_1c.up.sql` creates a partial unique index for act
 The insert uses `ON CONFLICT DO NOTHING`. If an active job for the same Order version already exists, `enqueueOrder1CSync` reads that existing job and returns its ID/status instead of adding another active copy.
 
 A previously **completed** job is outside this partial unique index. Consequently the manual endpoint can enqueue the same Order version again after its earlier job has completed.
+
+When several jobs exist for one Order version, the result consumer accepts
+only the newest job ID for that version. Thus a late result from an earlier
+manual attempt cannot replace a newer result for the same version.
+
+On each enqueue, including a manual retry, the service clears `price`,
+`amount`, `vat_percent` and `vat_amount` on that Order's item rows to `NULL`
+and resets `use_marking` to `false`
+inside the same transaction. A saved Order therefore does not display old 1C
+prices while a new synchronization is pending. These fields are supplied by
+1C and are not accepted from the writable Order document.
 
 ## 4. PostgreSQL queue and wake-up mechanism
 
@@ -376,6 +406,7 @@ The request envelope is:
     "customer_id": "customer-1c-uuid",
     "products": [
       {
+        "order_item_id": 987,
         "id": "product-1c-uuid",
         "quant": 2.5
       }
@@ -454,7 +485,7 @@ HandleCreateOrder1CResult
 
 in `internal/services/order1c.go`.
 
-### 11.1 Resolving the local Order
+### 11.1 Resolving and locking the local Order
 
 The handler first reads `order_id` and `order_version` from job metadata.
 
@@ -464,9 +495,19 @@ For old jobs it can fall back to correlation IDs beginning with:
 order:<id>
 ```
 
-If the referenced Order no longer exists, the result is simply consumed without updating any Order.
+The handler locks the Order row and compares its current `orders.version` to
+the result's `order_version`. A versioned result applies only when versions
+match **and** its job ID is the latest `create_order` job for the correlation
+ID `order:<id>:v<version>`. This also handles manual retries that create
+multiple completed jobs for the same version. If the Order no longer exists,
+the result is consumed without changing any Order.
 
-### 11.2 Which results can update `orders.ref_1c`
+A legacy job without a positive version can update the header only if the
+current Order is still version 1, no versioned v1 job exists, its saved request
+has no `order_item_id` values, and the response has no `items` array. Legacy
+item data is not matched to local lines.
+
+### 11.2 Which responses can update the Order
 
 The handler ignores:
 
@@ -477,19 +518,49 @@ The handler ignores:
 - a response with `success: false`;
 - a successful response without a non-empty payload ID.
 
-Expected successful body:
+A result with a present but invalid or incomplete `items` array is logged as
+a business failure and consumed without updating the header or any line.
+Newly enqueued jobs contain `order_item_id` in their saved request and require
+an `items` array in the response. A header-only response is accepted only for
+an older saved request without line IDs; it updates `ref_1c` and `number_1c`
+but leaves item monetary fields `NULL`.
+
+Expected successful body for a versioned job:
 
 ```json
 {
   "success": true,
   "payload": {
     "id": "1c-order-uuid",
-    "descr": "Заказ покупателя 000001 от 02.09.2026"
+    "descr": "Заказ покупателя 000001 от 02.09.2026",
+    "number_1c": "000001",
+    "items": [
+      {
+        "order_item_id": 987,
+        "price": "120.500000",
+        "amount": "241.00",
+        "vat_percent": "20.00",
+        "vat_amount": "40.17",
+        "use_marking": true
+      }
+    ]
   }
 }
 ```
 
-For such a result Meatshop stores:
+`order_item_id` echoes the local ID sent in `params.products` and must identify
+each requested line exactly once. All four numeric fields are decimal strings
+to avoid floating-point conversion in the 1C response. `amount` is the line
+total **including** VAT; `vat_percent` is supplied explicitly by 1C and is
+not inferred from rounded amounts. The complete returned set must match the
+current Order items: missing, extra or repeated IDs invalidate the result.
+New jobs (`result_schema_version: 2`) require an explicit `use_marking` JSON
+boolean on every line, including `false`. For an older queued job without
+the marker, an omitted flag defaults to `false` and its other values still apply.
+The handler also checks the current customer 1C reference, product 1C
+references, and quantities against the queued request snapshot.
+
+For a valid response Meatshop stores:
 
 ```json
 {
@@ -498,28 +569,27 @@ For such a result Meatshop stores:
 }
 ```
 
-into:
-
-```text
-public.orders.ref_1c
-```
+in `public.orders.ref_1c`, saves the returned `number_1c` in
+`public.orders.number_1c`, and writes each item's price, amount, VAT percent,
+VAT amount and `use_marking` in `public.order_items`. Admin and MAX Order
+details include the flag per item. The handler and result-consumed marker
+run in one database transaction: either all accepted values and the marker
+commit together, or none do.
 
 ### 11.3 What is not changed by result consumption
 
-The current handler does **not**:
+The handler does **not**:
 
 - increment `orders.version`;
-- set `orders.number_1c`;
-- change Order status;
-- modify Order items.
+- change Order status.
 
-It only applies `orders.ref_1c` for a valid successful `create_order` response.
-
-After the business handler succeeds, `ResultConsumer` sets `integration_1c.results.consumed_at` and `consumed_by` in the same transaction.
+The 1C result updates the current Order state without creating another
+`create_order` job. After the business handler succeeds, `ResultConsumer` sets
+`integration_1c.results.consumed_at` and `consumed_by` in the same transaction.
 
 ## 12. Stale jobs and concurrency
 
-There are two different stale-job mechanisms.
+There are three stale-job mechanisms.
 
 ### 12.1 Queued stale version
 
@@ -534,7 +604,17 @@ worker claims v1 -> current version is v2 -> v1 is skipped
 worker claims v2 -> versions match -> v2 is sent to 1C
 ```
 
-### 12.2 Abandoned processing job
+### 12.2 Late result for the current version
+
+Manual re-enqueue can create another `create_order` job for an unchanged Order
+version. On result consumption the handler checks, under the Order row lock,
+that the result belongs to the latest job ID for its version's correlation
+ID. An older completed job's late response is consumed without applying it.
+
+A legacy unversioned result is also skipped if a versioned v1 job has been
+created for the Order.
+
+### 12.3 Abandoned processing job
 
 `Store.RecoverStaleJobs` periodically finds `processing` jobs whose worker lock expired. It closes the abandoned attempt and either:
 
@@ -563,13 +643,15 @@ There is currently no separate `update_order` command in this backend path.
 
 Therefore the 1C-side `create_order` implementation must define the intended behavior for repeated versions of the same local Order. The backend supplies `order_id` and `order_version`, but does not choose a different command based on `ref_1c`.
 
-### 13.3 Small race window after the pre-execution version guard
+### 13.3 A version can change while the HTTP request is in flight
 
 The version guard is checked **before** the HTTP call to 1C. If the Order changes while a matching job is already executing, the Order version can become newer before the old HTTP response is consumed.
 
-`HandleCreateOrder1CResult` currently does not discard an older-version **successful HTTP 2xx body** solely because `order_version < currentVersion`; it only has special no-op handling for the synthetic 204 stale result.
-
-So the pre-execution guard prevents ordinary stale queued jobs, but there is still a concurrency window for an Order edit that happens while a 1C request is already in flight.
+The result handler checks the version and latest job ID again under an Order
+row lock before writing. If the Order was edited, or a later manual sync was
+queued for that same version, the old result is consumed without applying its
+header or line values. The external 1C call may already have happened; the
+local checks prevent its late response from overwriting the newer local state.
 
 ### 13.4 Completed does not mean business success
 
@@ -626,7 +708,9 @@ For a newly created local Order `id=42`, `version=1`:
 10. A terminal result is inserted and the job becomes `completed`.
 11. PostgreSQL notifies `integration_1c_results`.
 12. The result consumer calls `HandleCreateOrder1CResult`.
-13. On a valid successful response, `orders.ref_1c` receives the returned 1C `{id, descr}`.
+13. On a valid response from the latest matching job, `orders.ref_1c`,
+    `orders.number_1c` and every Order item's price/VAT fields receive the
+    returned 1C values together.
 14. The result is marked consumed.
 15. Later `GET /api/order/{id}/print-1c` sends `print_order` with
     `order_ids: [42]` and returns the PDF produced by 1C.

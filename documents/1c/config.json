@@ -9,13 +9,13 @@
 	"idleTimeout": "120s",
 
 	"auth": {
-		"requireAuth": false,
+		"requireAuth": true,
 		"username": "myasmasters",
-		"password": ""
+		"password": "0cca68fc7ad141b2b94542281ba33000"
 	},
 
 	"com": {
-		"connectionString": "Srvr=\"vds484\";Ref=\"21315_576_34256\";Usr=\"Михалевич\";Pwd=\"1111\"",
+		"connectionString": "File=\"D:\\1c_base\\iptrusovd\";Usr=\"1C_USER\";Pwd=\"1C_PASSWORD\"",
 		"commandExec": "WebAPI",
 		"maxPoolSize": 1,
 		"minPoolSize": 1,
