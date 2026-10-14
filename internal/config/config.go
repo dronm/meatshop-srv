@@ -85,10 +85,16 @@ type MAXConfig struct {
 
 type Integration1CConfig struct {
 	URL        string                    `json:"url"`
+	Auth       *Integration1CAuthConfig  `json:"auth,omitempty"`
 	Timeout    string                    `json:"timeout"`
 	MaxRetries int                       `json:"max_retries"`
 	RetryDelay string                    `json:"retry_delay"`
 	Worker     Integration1CWorkerConfig `json:"worker"`
+}
+
+type Integration1CAuthConfig struct {
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
 }
 
 type Integration1CWorkerConfig struct {

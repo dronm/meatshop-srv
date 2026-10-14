@@ -60,7 +60,11 @@
     "cache_ttl": "15m"
   },
   "integration_1c": {
-    "url": "http://127.0.0.1:3001",
+  "url": "http://92.255.164.212:45432",
+  "auth": {
+    "user_name": "myasmasters",
+    "password": "0cca68fc7ad141b2b94542281ba33000"
+  },
     "timeout": "15s",
     "max_retries": 2,
     "retry_delay": "250ms",

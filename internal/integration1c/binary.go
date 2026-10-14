@@ -51,6 +51,9 @@ func executeBinaryAttempt(
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/pdf, application/octet-stream, */*")
+	if client.auth != nil {
+		req.SetBasicAuth(client.auth.UserName, client.auth.Password)
+	}
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {

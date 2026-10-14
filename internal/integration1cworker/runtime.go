@@ -14,6 +14,7 @@ import (
 type RuntimeConfig struct {
 	DSN                     string
 	APIURL                  string
+	Auth                    *Auth
 	WorkerID                string
 	Concurrency             int
 	PollInterval            time.Duration
@@ -65,7 +66,7 @@ func NewRuntime(pool *pgxpool.Pool, cfg RuntimeConfig, handlers map[string]Resul
 		workerID = fmt.Sprintf("meatshop@%s:%d", host, os.Getpid())
 	}
 
-	gatewayClient, err := NewGatewayClient(cfg.APIURL, nil)
+	gatewayClient, err := NewGatewayClient(cfg.APIURL, cfg.Auth)
 	if err != nil {
 		return nil, fmt.Errorf("create integration 1c gateway client: %w", err)
 	}

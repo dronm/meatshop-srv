@@ -55,11 +55,20 @@ func newIntegration1CWorkerRuntime(
 		return nil, err
 	}
 
+	var auth *integration1cworker.Auth
+	if cfg.Integration1C.Auth != nil {
+		auth = &integration1cworker.Auth{
+			UserName: cfg.Integration1C.Auth.UserName,
+			Password: cfg.Integration1C.Auth.Password,
+		}
+	}
+
 	runtime, err := integration1cworker.NewRuntime(
 		pool,
 		integration1cworker.RuntimeConfig{
 			DSN:                     cfg.Database.Primary,
 			APIURL:                  cfg.Integration1C.URL,
+			Auth:                    auth,
 			WorkerID:                workerCfg.WorkerID,
 			Concurrency:             workerCfg.Concurrency,
 			PollInterval:            pollInterval,

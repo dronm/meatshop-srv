@@ -10,6 +10,10 @@ Add the following section to `config.json`:
 ```json
 "integration_1c": {
 	"url": "http://127.0.0.1:3001",
+	"auth": {
+		"user_name": "your-user",
+		"password": "your-password"
+	},
 	"timeout": "15s",
 	"max_retries": 2,
 	"retry_delay": "250ms"
@@ -17,6 +21,16 @@ Add the following section to `config.json`:
 ```
 
 `url` can be the goCOM1c server base URL, the full `/execute` URL, or the full `/bin-data` URL. The client derives both sibling endpoints (`/execute` and `/bin-data`) from the configured URL.
+
+`auth` is optional. Omit it or set it to `null` to send requests without an
+Authorization header. When the object is present, both the synchronous client
+and the embedded worker send `Authorization: Basic base64(user_name:password)`.
+This applies to `/execute` and `/bin-data`, including retries. Credentials are
+used as provided; an empty password is supported. An empty `auth` object sends
+empty credentials.
+
+The supplied `config.json` uses `"auth": null`. Replace it with the object above
+when the gateway requires authentication.
 
 `max_retries` is the number of retries after the initial request. With the value
 `2`, a command can be sent at most three times.
@@ -52,8 +66,17 @@ if err != nil {
 	return err
 }
 
+var auth *integration1c.Auth
+if cfg.Integration1C.Auth != nil {
+	auth = &integration1c.Auth{
+		UserName: cfg.Integration1C.Auth.UserName,
+		Password: cfg.Integration1C.Auth.Password,
+	}
+}
+
 oneCClient, err := integration1c.NewClient(integration1c.Config{
 	URL:        cfg.Integration1C.URL,
+	Auth:       auth,
 	Timeout:    integrationTimeout,
 	MaxRetries: cfg.Integration1C.MaxRetries,
 	RetryDelay: retryDelay,

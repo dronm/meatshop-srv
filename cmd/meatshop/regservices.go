@@ -32,8 +32,16 @@ func registerServices(
 		if err != nil {
 			return nil, err
 		}
+		var auth *integration1c.Auth
+		if cfg.Integration1C.Auth != nil {
+			auth = &integration1c.Auth{
+				UserName: cfg.Integration1C.Auth.UserName,
+				Password: cfg.Integration1C.Auth.Password,
+			}
+		}
 		oneCClient, err = integration1c.NewClient(integration1c.Config{
 			URL:        cfg.Integration1C.URL,
+			Auth:       auth,
 			Timeout:    timeout,
 			MaxRetries: cfg.Integration1C.MaxRetries,
 			RetryDelay: retryDelay,

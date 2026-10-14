@@ -9,10 +9,8 @@ curl -X POST http://127.0.0.1:5000/execute -H "Content-Type: application/json" -
 curl -X POST http://127.0.0.1:5000/execute -H "Authorization: Basic c3BldHNvdjo3NGU3ODgxYWI3M2Y0YmQ0OTE2Y2RmNjFjOWViNmU0Nw==" -H "Content-Type: application/json" -d @check_order_close.json
 
 
-curl http://127.0.0.1:5000/status -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
-curl http://127.0.0.1:5000/health
-curl http://212.113.243.234:5000/health
-curl http://212.113.243.234:5000/status -H "Authorization: Basic c3BldHNvdjo3NGU3ODgxYWI3M2Y0YmQ0OTE2Y2RmNjFjOWViNmU0Nw=="
+curl http://92.255.164.212:45432/health
+curl http://92.255.164.212:45432/status -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
+curl http://92.255.164.212:45432/stop -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
+curl http://92.255.164.212:45432/start -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
 
-C:\Base_1C\curl\curl -X POST http://127.0.0.1:5000/stop
-C:\Base_1C\curl\curl -X POST http://127.0.0.1:5000/start

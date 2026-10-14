@@ -333,6 +333,7 @@ integration_1c.worker.enabled = true
 The runtime uses:
 
 - `integration_1c.url` as the 1C gateway base URL;
+- optional `integration_1c.auth` credentials for HTTP Basic authentication;
 - the primary PostgreSQL DSN;
 - configured worker concurrency, polling, retry, lock and timeout values.
 
@@ -394,6 +395,11 @@ Legacy jobs without a positive `order_version` are allowed to execute for backwa
 `GatewayClient.Execute` in `internal/integration1cworker/gateway.go` sends an HTTP `POST`.
 
 If `integration_1c.url` does not already end with `/execute`, `/execute` is appended.
+
+When `integration_1c.auth` is present, the worker sends
+`Authorization: Basic base64(user_name:password)`. Omit `auth` or set it to `null`
+to send requests without an Authorization header. The synchronous client uses
+the same credentials; see [1C integration configuration](1c-integration.md#configuration).
 
 The request envelope is:
 

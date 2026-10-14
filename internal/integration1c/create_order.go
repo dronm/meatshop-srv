@@ -22,6 +22,7 @@ type CreateOrderResult struct {
 	Items    []CreateOrderItemResult `json:"items,omitempty"`
 }
 
+// CreateOrderItemResult holds 1c response.
 // Monetary values are decimal strings so the 1C response does not pass
 // through a binary floating-point representation before reaching NUMERIC.
 type CreateOrderItemResult struct {

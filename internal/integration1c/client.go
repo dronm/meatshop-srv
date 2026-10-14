@@ -26,6 +26,12 @@ type Config struct {
 	Timeout    time.Duration
 	MaxRetries int
 	RetryDelay time.Duration
+	Auth       *Auth
+}
+
+type Auth struct {
+	UserName string
+	Password string
 }
 
 type Client struct {
@@ -34,6 +40,7 @@ type Client struct {
 	httpClient *http.Client
 	maxRetries int
 	retryDelay time.Duration
+	auth       *Auth
 }
 
 type commandRequest struct {
@@ -118,6 +125,7 @@ func NewClient(cfg Config) (*Client, error) {
 		httpClient: &http.Client{Timeout: timeout},
 		maxRetries: maxRetries,
 		retryDelay: retryDelay,
+		auth:       cfg.Auth,
 	}, nil
 }
 
@@ -174,6 +182,9 @@ func executeAttempt[T any](ctx context.Context, client *Client, command string, 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if client.auth != nil {
+		req.SetBasicAuth(client.auth.UserName, client.auth.Password)
+	}
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
