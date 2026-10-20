@@ -11,6 +11,6 @@ curl -X POST http://127.0.0.1:5000/execute -H "Authorization: Basic c3BldHNvdjo3
 
 curl http://92.255.164.212:45432/health
 curl http://92.255.164.212:45432/status -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
-curl http://92.255.164.212:45432/stop -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
-curl http://92.255.164.212:45432/start -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
+curl -X POST http://92.255.164.212:45432/stop -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
+curl -X POST http://92.255.164.212:45432/start -H "Authorization: Basic bXlhc21hc3RlcnM6MGNjYTY4ZmM3YWQxNDFiMmI5NDU0MjI4MWJhMzMwMDA="
 

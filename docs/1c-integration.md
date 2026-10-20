@@ -430,3 +430,48 @@ Migration `000028_order_print_1c` grants `order.print1c` to the `admin` role.
 Migration `000050_order_shipments_1c` adds the two shipment permissions, grants
 them to `admin`, and prevents duplicate active `create_shipments` jobs for the
 same correlation ID.
+
+## Gateway administration
+
+Apply migration `000064_integration_1c_admin`, rebuild/restart the backend, and deploy
+this frontend. Open `/integration-1c/admin` (route `integration1cAdmin`) or select
+`Управление интеграцией 1С` in the admin menu. The migration adds the menu item
+under an existing `Администрирование` group, or at the top level if that group
+is absent. A cached menu may take up to `main_menu.cache_ttl` to refresh; the direct
+page URL is available immediately after deployment.
+
+All four backend endpoints require a valid application session, the
+`integration1c.admin` permission (granted to `admin`), and the `admin` role checked
+inside the service. This includes the application's health proxy.
+
+| Application endpoint | Gateway request | Gateway credentials |
+| --- | --- | --- |
+| `GET /api/integration-1c/health` | `GET {integration_1c.url}/health` | None |
+| `GET /api/integration-1c/status` | `GET {integration_1c.url}/status` | Configured Basic auth |
+| `POST /api/integration-1c/stop` | `POST {integration_1c.url}/stop` | Configured Basic auth |
+| `POST /api/integration-1c/start` | `POST {integration_1c.url}/start` | Configured Basic auth |
+
+The existing `integration_1c.url` and optional `integration_1c.auth` are reused.
+URLs ending in `/execute` or `/bin-data` are normalized to sibling admin endpoints.
+Credentials stay on the backend; the browser never sends the gateway credentials.
+No configuration fields or generated files need to change.
+
+A completed gateway HTTP exchange returns application HTTP 200 with
+`{ "status_code": <gateway HTTP status>, "body": <gateway response> }`.
+JSON is preserved as JSON, plain text as a string, and an empty body as null.
+Gateway HTTP failures (including 401/503) remain diagnostic data on the page;
+an upstream 401 does not log the administrator out of MeatShop. Transport failures
+or missing configuration return an application error.
+
+The page checks health/status on entry and after each start/stop attempt. Commands
+are serialized in the page, while health/status reads can run concurrently.
+Responses show timestamps, HTTP codes and formatted bodies. Non-2xx responses
+and JSON responses containing `success: false` are highlighted as failures.
+
+Admin requests use `integration_1c.timeout`, have a 1 MiB response limit, do not
+follow redirects, and are never retried. The browser lets the backend enforce
+the timeout instead of the application's default one-second client timeout.
+If a start/stop request times out, refresh status before repeating it: the gateway
+may have already applied the command. Stop followed by start reconnects the
+integration so the updated WebAPI processing can be loaded; it does not restart
+the MeatShop process. No live gateway is contacted by the automated tests.

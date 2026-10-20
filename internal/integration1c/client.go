@@ -35,6 +35,7 @@ type Auth struct {
 }
 
 type Client struct {
+	baseURL    *url.URL
 	executeURL string
 	binDataURL string
 	httpClient *http.Client
@@ -120,6 +121,7 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	return &Client{
+		baseURL:    parsedURL,
 		executeURL: buildCommandURL(parsedURL, "execute"),
 		binDataURL: buildCommandURL(parsedURL, "bin-data"),
 		httpClient: &http.Client{Timeout: timeout},
