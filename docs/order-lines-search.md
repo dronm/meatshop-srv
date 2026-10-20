@@ -16,7 +16,7 @@ There are no files to delete. Generated files and dependency manifests are uncha
 - Order number and the displayed 1C order/shipment captions are searchable. The 1C fields have the separate `{id, descr}` format; their captions use text search.
 - Quantity, price, amount, VAT, and marking are excluded from search.
 - Loading the home page or signing in opens `orderLines` (`/order-lines`).
-- Existing order-group borders, commands, and edit/copy navigation are retained.
+- Existing order-group borders and edit/copy navigation are retained. The shared commands also include on-demand creation in 1C; see `order-1c-creation.md`.
 
 The endpoint continues using `modelbind` and `webapp.FetchCollectionModel`. A small parameter conversion supplies numeric picker IDs as text for PostgreSQL's `->>` expressions; pgx otherwise rejects numeric values for text parameters.
 

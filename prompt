@@ -17,9 +17,16 @@ Quantity, price, amount, vet, marking - these columns do not need searching
 
 ******************************
 I need to modify my 1c integration:
-Right now, a placed order is passed to 1c. I want to be able to do it "on demand".
-But I want to be able to mark orders (already have this feature), then press a button "Create order",
+Right now, a newly placed order is passed to 1c. I want to be able to do it "on demand" with a button in.
+orders and orderLines collections.
+But I want to be able to select orders in a collection (already have this feature), then press a button "Create order",
 just like "Create shipment". This feature should be in both: orders collection and in orderLines collection.
+Modify my backend to support this multiple order feature and remove autogenerating orders on creation.
 Please, check my obrabotka 1c code, make a feature to create multiple orders. 
+Do not remove the old method.
 Also, correct my mock 1c server
 
+*******************************************
+I have one issue: when an order is modified, the notification is sent to MAX, that is cool,
+but sometimes users do not modify product quantity, but remove completely the line. I want also
+to send notification in this case. Please, check.

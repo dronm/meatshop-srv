@@ -57,45 +57,28 @@ func enqueueOrder1CSync(ctx context.Context, tx ds.Querier, orderID int, orderVe
 		return models.Integration1CJobResponse{}, webapp.BadRequest("order id and version are required for 1c sync", nil)
 	}
 
-	var customerRef *string
-	if err := tx.QueryRow(ctx, `
-		SELECT customer.ref_1c->>'id'
-		FROM public.orders orders
-		JOIN public.customers customer ON customer.id = orders.customer_id
-		WHERE orders.id = $1
-	`, orderID).Scan(&customerRef); err != nil {
-		if errors.Is(err, ds.ErrNoRows) {
-			return models.Integration1CJobResponse{}, webapp.NotFound("order not found", map[string]any{"id": orderID})
-		}
-		return models.Integration1CJobResponse{}, err
-	}
-	if customerRef == nil || strings.TrimSpace(*customerRef) == "" {
-		return models.Integration1CJobResponse{}, webapp.BadRequest("order customer has no 1c reference", map[string]any{"order_id": orderID})
-	}
-
-	products, err := order1CProducts(ctx, tx, orderID)
+	orderParams, err := order1CParams(ctx, tx, orderID, orderVersion)
 	if err != nil {
 		return models.Integration1CJobResponse{}, err
 	}
-	// These values describe the last completed 1C calculation. A new
-	// synchronization invalidates them until the matching response arrives.
-	if _, err := tx.Exec(ctx, `
-		UPDATE public.order_items
-		SET price = NULL, amount = NULL, vat_percent = NULL, vat_amount = NULL,
-			use_marking = FALSE
-		WHERE order_id = $1
-			AND (price IS NOT NULL OR amount IS NOT NULL OR vat_percent IS NOT NULL
-				OR vat_amount IS NOT NULL OR use_marking IS DISTINCT FROM FALSE)
-	`, orderID); err != nil {
-		return models.Integration1CJobResponse{}, fmt.Errorf("clear order %d prices before 1c sync: %w", orderID, err)
+	if err := clearOrder1CPrices(ctx, tx, orderID); err != nil {
+		return models.Integration1CJobResponse{}, err
 	}
-	params, err := json.Marshal(integration.CreateOrderParams{OrderID: orderID, OrderVersion: orderVersion, CustomerID: strings.TrimSpace(*customerRef), Products: products})
+	params, err := json.Marshal(orderParams)
 	if err != nil {
 		return models.Integration1CJobResponse{}, fmt.Errorf("marshal create_order params: %w", err)
+	}
+	var dependencies []int64
+	if err := tx.QueryRow(ctx, `SELECT COALESCE(array_agg(id), '{}'::bigint[])
+		FROM integration_1c.jobs WHERE command = 'create_orders'
+		AND status IN ('queued', 'processing') AND params->'orders' @> $1::jsonb`,
+		fmt.Sprintf(`[{"order_id":%d}]`, orderID)).Scan(&dependencies); err != nil {
+		return models.Integration1CJobResponse{}, err
 	}
 	metadata, err := json.Marshal(map[string]any{
 		"entity": "order", "order_id": orderID, "order_version": orderVersion,
 		"result_schema_version": createOrderResultSchemaVersion,
+		"depends_on_job_ids":    dependencies,
 	})
 	if err != nil {
 		return models.Integration1CJobResponse{}, fmt.Errorf("marshal create_order metadata: %w", err)
@@ -117,6 +100,66 @@ func enqueueOrder1CSync(ctx context.Context, tx ds.Querier, orderID int, orderVe
 		}
 	}
 	return response, nil
+}
+
+// An unsent draft stays local. After the first explicit request, corrections
+// continue using the existing single-order synchronization automatically.
+func syncOrder1CAfterCorrection(ctx context.Context, tx ds.Querier, orderID int, version int64) error {
+	var requested bool
+	if err := tx.QueryRow(ctx, `SELECT
+		NULLIF(btrim(o.ref_1c->>'id'), '') IS NOT NULL OR EXISTS (
+			SELECT 1 FROM integration_1c.jobs AS j WHERE
+				(j.command = 'create_order' AND j.params->>'order_id' = $2)
+				OR (j.command = 'create_orders' AND j.params->'orders' @> $3::jsonb)
+		) FROM public.orders AS o WHERE o.id = $1`, orderID, strconv.Itoa(orderID),
+		fmt.Sprintf(`[{"order_id":%d}]`, orderID)).Scan(&requested); err != nil {
+		return err
+	}
+	if !requested {
+		return clearOrder1CPrices(ctx, tx, orderID)
+	}
+	_, err := enqueueOrder1CSync(ctx, tx, orderID, version)
+	return err
+}
+
+func order1CParams(ctx context.Context, tx ds.Querier, orderID int, orderVersion int64) (integration.CreateOrderParams, error) {
+	var customerRef *string
+	if err := tx.QueryRow(ctx, `
+		SELECT customer.ref_1c->>'id'
+		FROM public.orders orders
+		JOIN public.customers customer ON customer.id = orders.customer_id
+		WHERE orders.id = $1
+	`, orderID).Scan(&customerRef); err != nil {
+		if errors.Is(err, ds.ErrNoRows) {
+			return integration.CreateOrderParams{}, webapp.NotFound("order not found", map[string]any{"id": orderID})
+		}
+		return integration.CreateOrderParams{}, err
+	}
+	if customerRef == nil || strings.TrimSpace(*customerRef) == "" {
+		return integration.CreateOrderParams{}, webapp.BadRequest("order customer has no 1c reference", map[string]any{"order_id": orderID})
+	}
+
+	products, err := order1CProducts(ctx, tx, orderID)
+	if err != nil {
+		return integration.CreateOrderParams{}, err
+	}
+	return integration.CreateOrderParams{OrderID: orderID, OrderVersion: orderVersion, CustomerID: strings.TrimSpace(*customerRef), Products: products}, nil
+}
+
+func clearOrder1CPrices(ctx context.Context, tx ds.Querier, orderID int) error {
+	// These values describe the last completed 1C calculation. A new
+	// synchronization invalidates them until the matching response arrives.
+	if _, err := tx.Exec(ctx, `
+		UPDATE public.order_items
+		SET price = NULL, amount = NULL, vat_percent = NULL, vat_amount = NULL,
+			use_marking = FALSE
+		WHERE order_id = $1
+			AND (price IS NOT NULL OR amount IS NOT NULL OR vat_percent IS NOT NULL
+				OR vat_amount IS NOT NULL OR use_marking IS DISTINCT FROM FALSE)
+	`, orderID); err != nil {
+		return fmt.Errorf("clear order %d prices before 1c sync: %w", orderID, err)
+	}
+	return nil
 }
 
 func order1CProducts(ctx context.Context, tx ds.Querier, orderID int) ([]integration.CreateOrderProduct, error) {
@@ -186,9 +229,11 @@ func HandleCreateOrder1CResult(ctx context.Context, tx pgx.Tx, result integratio
 		var latestJobID int64
 		if err := tx.QueryRow(ctx, `
 			SELECT id FROM integration_1c.jobs
-			WHERE command = $1 AND correlation_id = $2
+			WHERE (command = $1 AND correlation_id = $2)
+				OR (command = $3 AND params->'orders' @> $4::jsonb)
 			ORDER BY id DESC LIMIT 1
-		`, integration.CommandCreateOrder, correlationID).Scan(&latestJobID); err != nil {
+		`, integration.CommandCreateOrder, correlationID, integration.CommandCreateOrders,
+			fmt.Sprintf(`[{"order_id":%d,"order_version":%d}]`, orderID, orderVersion)).Scan(&latestJobID); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				slog.Error("create_order result has no matching versioned job", "orderID", orderID, "jobID", result.JobID)
 				return nil

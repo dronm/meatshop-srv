@@ -569,9 +569,6 @@ func (s *MaxMiniAppService) CreateOrder(ctx context.Context, input models.MaxOrd
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, orderID); err != nil {
 			return err
 		}
-		if _, err := enqueueOrder1CSync(ctx, tx, orderID, version); err != nil {
-			return err
-		}
 		result, err = fetchMaxOrderDetail(ctx, tx, orderID, *maxUser.CustomerID)
 		if err != nil {
 			return err
@@ -661,9 +658,10 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, input.ID); err != nil {
 			return err
 		}
-		if _, err := enqueueOrder1CSync(ctx, tx, input.ID, newVersion); err != nil {
+		if err := syncOrder1CAfterCorrection(ctx, tx, input.ID, newVersion); err != nil {
 			return err
 		}
+
 		result, err = fetchMaxOrderDetail(ctx, tx, input.ID, *maxUser.CustomerID)
 		if err != nil {
 			return err

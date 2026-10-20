@@ -44,6 +44,14 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithHandler(orderBatchPrint1CHandler(deps.DB, deps.Integration1CClient)),
 	)
 	api.POST(
+		"/order/create-orders-1c",
+		webapp.WithName("order.create1c.batch"),
+		webapp.WithPermission("order.create1c"),
+		webapp.WithService("Order", "CreateOrders1C"),
+		webapp.WithBinder(orderIDsJSONBinder()),
+		webapp.WithSuccessCode(http.StatusAccepted),
+	)
+	api.POST(
 		"/order/create-shipments-1c",
 		webapp.WithName("order.createShipments1c"),
 		webapp.WithPermission("order.createShipments1c"),

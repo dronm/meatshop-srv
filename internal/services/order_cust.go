@@ -73,9 +73,6 @@ func (s *OrderService) Create(
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, document.ID); err != nil {
 			return err
 		}
-		if _, err := enqueueOrder1CSync(ctx, tx, document.ID, document.Version); err != nil {
-			return err
-		}
 
 		result, err = fetchOrderDetail(ctx, tx, document.ID)
 		return err
@@ -197,7 +194,8 @@ func (s *OrderService) Update(
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, document.ID); err != nil {
 			return err
 		}
-		if _, err := enqueueOrder1CSync(ctx, tx, document.ID, document.Version); err != nil {
+
+		if err := syncOrder1CAfterCorrection(ctx, tx, document.ID, document.Version); err != nil {
 			return err
 		}
 

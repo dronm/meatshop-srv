@@ -1,6 +1,23 @@
 package integration1c
 
 const CommandCreateOrder = "create_order"
+const CommandCreateOrders = "create_orders"
+
+type CreateOrdersParams struct {
+	Orders []CreateOrderParams `json:"orders"`
+}
+
+type CreateOrdersResult struct {
+	OrderID      int   `json:"order_id"`
+	OrderVersion int64 `json:"order_version"`
+	CreateOrderResult
+}
+
+type CreateOrdersResponse struct {
+	Success bool                 `json:"success"`
+	Payload []CreateOrdersResult `json:"payload"`
+	Error   string               `json:"error,omitempty"`
+}
 
 type CreateOrderParams struct {
 	OrderID      int                  `json:"order_id"`

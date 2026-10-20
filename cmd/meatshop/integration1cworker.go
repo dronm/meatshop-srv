@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -82,6 +83,7 @@ func newIntegration1CWorkerRuntime(
 		},
 		map[string]integration1cworker.ResultHandler{
 			integration.CommandCreateOrder:     services.HandleCreateOrder1CResult,
+			integration.CommandCreateOrders:    services.HandleCreateOrders1CResult,
 			integration.CommandCreateShipments: services.HandleCreateShipments1CResult,
 		},
 	)
@@ -90,6 +92,23 @@ func newIntegration1CWorkerRuntime(
 	}
 
 	runtime.SetJobGuard(func(ctx context.Context, job *integration1cworker.Job) (bool, error) {
+		if job.Command == integration.CommandCreateOrders {
+			params, err := services.CreateOrdersJobParams(job.Params)
+			if err != nil {
+				return false, err
+			}
+			orders, err := json.Marshal(params.Orders)
+			if err != nil {
+				return false, err
+			}
+			var count int
+			// Corrections enqueue versioned single-order jobs which depend on
+			// this batch. Send the explicit snapshot first, then its corrections.
+			err = pool.QueryRow(ctx, `SELECT count(*) FROM public.orders AS o
+				JOIN jsonb_to_recordset($1::jsonb) AS requested(order_id integer, order_version bigint)
+				ON o.id = requested.order_id`, orders).Scan(&count)
+			return count == len(params.Orders), err
+		}
 		if job.Command != integration.CommandCreateOrder {
 			return true, nil
 		}

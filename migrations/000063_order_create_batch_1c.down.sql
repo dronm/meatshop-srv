@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS integration_1c.integration_1c_jobs_create_orders_active_idx;

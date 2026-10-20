@@ -44,6 +44,14 @@ func (s *Store) ClaimNextJob(ctx context.Context, workerID string) (*Job, error)
 		WHERE status = 'queued'
 			AND available_at <= clock_timestamp()
 			AND attempt_count < max_attempts
+			AND NOT EXISTS (
+				SELECT 1 FROM integration_1c.jobs AS dependency
+				WHERE dependency.id IN (
+					SELECT value::bigint FROM jsonb_array_elements_text(
+						COALESCE(NULLIF(jobs.metadata->'depends_on_job_ids', 'null'::jsonb), '[]'::jsonb)
+					)
+				) AND dependency.status IN ('queued', 'processing')
+			)
 		ORDER BY priority DESC, available_at, created_at, id
 		FOR UPDATE SKIP LOCKED
 		LIMIT 1
