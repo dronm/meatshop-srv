@@ -1,10 +1,25 @@
-I have an order list projection. I want to keep it as is.
-But I need another one that lists all items with price/amount/vat_amount
-The header should be:
-shipment| customer| sale_place| item| quant| price| amount| vat_amount| marking
-We will tackle gui code later, for now, just correct my backend code.
+Please, make some modifications to my app:
 
-I have added one view to my projct: order_lines_list, look at the last migration.
-I want to add another projection to order list colleciton.
-I already have a list projection, I want to keep, this should be another
-one. I need a new model for it and new api method.
+1. I need to modify the route order-lines.
+- I want to completely remove a column "Строка"
+- I need to search on all columns, even reference once, I have this feature in my library.
+Reference columns should create a reference field on a search panel, so a user should first
+find an element he is interested in, then the search should be done on its key.
+So, eventually an exact search should be done on referenceField->'keys'->>'id', not a 
+ilike search on referenceField->>'descr'. But do not invent anything, I have all features
+in my vue-collection-lib, vue-business-app and my backend modelbind library.
+Specifically I need a filter on "Customer" and "Sale place" and "Production"
+Quantity, price, amount, vet, marking - these columns do not need searching
+
+- I need a column "order date" and of course it should be searchable.
+
+2. The default page (the one that opens on app loading) should be this orderLines collection.
+
+******************************
+I need to modify my 1c integration:
+Right now, a placed order is passed to 1c. I want to be able to do it "on demand".
+But I want to be able to mark orders (already have this feature), then press a button "Create order",
+just like "Create shipment". This feature should be in both: orders collection and in orderLines collection.
+Please, check my obrabotka 1c code, make a feature to create multiple orders. 
+Also, correct my mock 1c server
+
