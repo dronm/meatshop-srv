@@ -15,7 +15,7 @@ The application uses `public.max_out_messages` as the durable outgoing MAX queue
 Migration `000038_notification_templates` creates two default events:
 
 - `order.submitted` — a customer submits a new Order or resubmits an editable Order. The same template/recipient configuration is used in both cases; `Resubmitted` distinguishes the message text.
-- `order.changed` — an employee changes Order status or changes a confirmed quantity so that it differs from `quant_required`.
+- `order.changed` — an employee changes Order status, changes a confirmed quantity so that it differs from `quant_required`, or removes an order line.
 
 ### `notification_template_recipients`
 
@@ -36,20 +36,29 @@ Only active MAX accounts are queued. A responsible employee therefore needs a MA
 
 ### Customer creates a new Order
 
-`MaxMiniAppService.CreateOrder()` saves the Order/items, queues 1C synchronization, fetches the completed Order detail and enqueues the `order.submitted` notification for all configured responsible employees. All inserts use the same PostgreSQL transaction.
+`MaxMiniAppService.CreateOrder()` saves the Order/items, fetches the completed Order detail and enqueues the `order.submitted` notification for all configured responsible employees. Initial 1C creation is requested separately through the collection command. All inserts use the same PostgreSQL transaction.
 
 ### Customer resubmits an Order
 
 `MaxMiniAppService.UpdateOrder()` performs the same notification flow with `Resubmitted=true`. Responsible employees are configured only once on the `order_submitted` template.
 
-### Employee changes status or confirmed quantity
+### Employee changes status, confirmed quantity, or removes a line
 
-`OrderService.Update()` locks the current Order and item quantities before updating. After the new document is stored it sends `order.changed` to the original customer MAX user when either:
+`OrderService.Update()` locks the current Order and captures its line IDs, product names, original positions, and quantities before updating. After the new document is stored it sends `order.changed` to the original customer MAX user when any of these conditions holds:
 
 - `status_id` differs from the old status; or
-- an item was actually changed and its resulting `quant` differs from `quant_required`.
+- an item was actually changed and its resulting `quant` differs from `quant_required`; or
+- a previously saved line is absent from the updated order, including lines with equal or zero confirmed quantity.
 
 An old quantity mismatch that is left unchanged does not generate another notification on an unrelated edit.
+
+Removed lines are detected by the local line ID, so two lines for the same product are distinguished. Their descriptions and quantities come from the snapshot taken before deletion. Removal details are included in `ChangedItems`, preserving compatibility with existing notification templates, for example:
+
+```text
+• Мясо: позиция удалена (заказано: 5; подтверждено: 5)
+```
+
+Quantity changes and removed lines in the same save are combined in one notification per active template. A later unchanged save does not repeat a removal. No migration or template replacement is required.
 
 ## Available template fields
 
@@ -63,7 +72,7 @@ Order templates can use these Go `text/template` fields:
 - `{{.StatusName}}`
 - `{{.CommentCustomer}}`
 - `{{.StatusChanged}}`
-- `{{.ChangedItems}}` — newline-separated `requested -> confirmed` lines for changed items.
+- `{{.ChangedItems}}` — newline-separated quantity changes and descriptions of removed lines.
 - `{{.Resubmitted}}` — true for a customer resend/update.
 
 Example:

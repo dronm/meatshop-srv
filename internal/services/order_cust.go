@@ -206,12 +206,13 @@ func (s *OrderService) Update(
 		}
 
 		changedItemIDs := changedConfirmedQuantityItemIDs(oldItems, document.Items)
-		if statusChanged || len(changedItemIDs) > 0 {
+		removedItems := removedOrderItemSnapshots(oldItems, document.Items)
+		if statusChanged || len(changedItemIDs) > 0 || len(removedItems) > 0 {
 			if err := enqueueOrderCustomerNotification(
 				ctx,
 				tx,
 				originalCustomerUserID,
-				orderNotificationDataFromDetail(result, statusChanged, changedItemIDs),
+				orderNotificationDataFromDetail(result, statusChanged, changedItemIDs, removedItems),
 			); err != nil {
 				return err
 			}

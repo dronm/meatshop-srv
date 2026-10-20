@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -32,6 +33,9 @@ type orderNotificationData struct {
 }
 
 type orderItemSnapshot struct {
+	LineNum       int
+	ProductID     int
+	ProductName   string
 	QuantRequired float64
 	Quant         float64
 }
@@ -225,6 +229,7 @@ func orderNotificationDataFromDetail(
 	detail *models.OrderDetail,
 	statusChanged bool,
 	changedItemIDs map[int]struct{},
+	removedItems []orderItemSnapshot,
 ) orderNotificationData {
 	if detail == nil {
 		return orderNotificationData{}
@@ -272,15 +277,32 @@ func orderNotificationDataFromDetail(
 		}
 		result.ChangedItems = strings.Join(lines, "\n")
 	}
+	for _, item := range removedItems {
+		name := strings.TrimSpace(item.ProductName)
+		if name == "" {
+			name = strconv.Itoa(item.ProductID)
+		}
+		if result.ChangedItems != "" {
+			result.ChangedItems += "\n"
+		}
+		result.ChangedItems += fmt.Sprintf(
+			"• %s: позиция удалена (заказано: %s; подтверждено: %s)",
+			name,
+			formatNotificationQuantity(item.QuantRequired),
+			formatNotificationQuantity(item.Quant),
+		)
+	}
 	return result
 }
 
 func loadOrderItemSnapshots(ctx context.Context, tx ds.Querier, orderID int) (map[int]orderItemSnapshot, error) {
 	rows, err := tx.Query(ctx, `
-		SELECT id, quant_required::double precision, quant::double precision
-		FROM public.order_items
-		WHERE order_id = $1
-		FOR UPDATE
+		SELECT item.id, item.line_num, item.product_id, COALESCE(product.name, ''),
+			item.quant_required::double precision, item.quant::double precision
+		FROM public.order_items AS item
+		LEFT JOIN public.products AS product ON product.id = item.product_id
+		WHERE item.order_id = $1
+		FOR UPDATE OF item
 	`, orderID)
 	if err != nil {
 		return nil, err
@@ -291,12 +313,43 @@ func loadOrderItemSnapshots(ctx context.Context, tx ds.Querier, orderID int) (ma
 	for rows.Next() {
 		var id int
 		var snapshot orderItemSnapshot
-		if err := rows.Scan(&id, &snapshot.QuantRequired, &snapshot.Quant); err != nil {
+		if err := rows.Scan(&id, &snapshot.LineNum, &snapshot.ProductID, &snapshot.ProductName,
+			&snapshot.QuantRequired, &snapshot.Quant); err != nil {
 			return nil, err
 		}
 		result[id] = snapshot
 	}
 	return result, rows.Err()
+}
+
+func removedOrderItemSnapshots(
+	oldItems map[int]orderItemSnapshot,
+	newItems []*models.OrderDocumentItem,
+) []orderItemSnapshot {
+	remaining := make(map[int]struct{}, len(newItems))
+	for _, item := range newItems {
+		if item != nil {
+			remaining[item.ID] = struct{}{}
+		}
+	}
+	removedIDs := make([]int, 0)
+	for id := range oldItems {
+		if _, exists := remaining[id]; !exists {
+			removedIDs = append(removedIDs, id)
+		}
+	}
+	sort.Slice(removedIDs, func(i, j int) bool {
+		left, right := oldItems[removedIDs[i]], oldItems[removedIDs[j]]
+		if left.LineNum == right.LineNum {
+			return removedIDs[i] < removedIDs[j]
+		}
+		return left.LineNum < right.LineNum
+	})
+	removed := make([]orderItemSnapshot, 0, len(removedIDs))
+	for _, id := range removedIDs {
+		removed = append(removed, oldItems[id])
+	}
+	return removed
 }
 
 func changedConfirmedQuantityItemIDs(
