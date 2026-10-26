@@ -8,6 +8,7 @@ Meatshop is the Go/PostgreSQL backend for the ordering application. It provides 
 - [1C integration](docs/1c-integration.md) — general 1C integration, autocomplete and print-form API notes.
 - [Order document and product register](docs/order-document-register.md) — Order aggregate and register behavior.
 - [Order date policy](docs/order-date-policy.md) — cutoff, holiday calendar, customer privilege, and MAX client limits.
+- [Batch order status changes](docs/order-batch-status.md) — collection selection, atomic updates, permissions and notifications.
 - [MAX bot](docs/max-bot.md) — MAX bot integration and message processing.
 - [MAX notifications](docs/notifications.md) — templates, responsible recipients, Order events and delivery flow.
 

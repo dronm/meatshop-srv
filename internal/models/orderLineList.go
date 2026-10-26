@@ -25,6 +25,7 @@ type OrderLineList struct {
 	LineNum           int       `json:"line_num"`
 	Ref1C             *Ref1c    `json:"ref_1c"`
 	ForDate           time.Time `json:"for_date"`
+	Status            *Ref      `json:"status"`
 }
 
 func (m OrderLineList) Relation() string {

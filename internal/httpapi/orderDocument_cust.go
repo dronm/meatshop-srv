@@ -38,6 +38,13 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithSuccessCode(http.StatusCreated),
 	)
 	api.POST(
+		"/order/change-status",
+		webapp.WithName("order.changeStatus"),
+		webapp.WithPermission("order.update"),
+		webapp.WithService("Order", "ChangeStatus"),
+		webapp.WithBinder(orderStatusChangeJSONBinder()),
+	)
+	api.POST(
 		"/order/print-1c",
 		webapp.WithName("order.print1c.batch"),
 		webapp.WithPermission("order.print1c"),

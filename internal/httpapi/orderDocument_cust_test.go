@@ -27,6 +27,7 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 		"order.create":            {http.MethodPost, "/api/order", "Create", "order.create", false},
 		"order.detail":            {http.MethodGet, "/api/order/{id}", "DocumentDetail", "order.detail", false},
 		"order.update":            {http.MethodPut, "/api/order/{id}", "Update", "order.update", false},
+		"order.changeStatus":      {http.MethodPost, "/api/order/change-status", "ChangeStatus", "order.update", false},
 		"order.create1c":          {http.MethodPost, "/api/order/{id}/create-1c", "Create1C", "order.create1c", false},
 		"order.create1c.batch":    {http.MethodPost, "/api/order/create-orders-1c", "CreateOrders1C", "order.create1c", false},
 		"order.print1c":           {http.MethodGet, "/api/order/{id}/print-1c", "", "order.print1c", true},
