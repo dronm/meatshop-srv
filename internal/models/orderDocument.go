@@ -22,12 +22,13 @@ type OrderDocument struct {
 
 // OrderDocumentItem is one writable row embedded into OrderDocument.
 type OrderDocumentItem struct {
-	ID            int     `json:"id"`
-	LineNum       int     `json:"line_num"`
-	ProductID     int     `json:"product_id"`
-	MeasureUnitID int     `json:"measure_unit_id"`
-	QuantRequired float64 `json:"quant_required"`
-	Quant         float64 `json:"quant"`
+	ID              int     `json:"id"`
+	LineNum         int     `json:"line_num"`
+	ProductID       int     `json:"product_id"`
+	MeasureUnitID   int     `json:"measure_unit_id"`
+	QuantRequired   float64 `json:"quant_required"`
+	Quant           float64 `json:"quant"`
+	WeightConfirmed *bool   `json:"weight_confirmed,omitempty"`
 }
 
 // OrderDetail is the complete Order aggregate returned by detail, create, and
@@ -55,19 +56,21 @@ type OrderDetail struct {
 
 // OrderDetailItem is one Order item returned with its reference projections.
 type OrderDetailItem struct {
-	ID            int     `json:"id"`
-	LineNum       int     `json:"line_num"`
-	ProductID     int     `json:"product_id"`
-	Product       *Ref    `json:"product"`
-	MeasureUnitID int     `json:"measure_unit_id"`
-	MeasureUnit   *Ref    `json:"measure_unit"`
-	QuantRequired float64 `json:"quant_required"`
-	Quant         float64 `json:"quant"`
-	Price         *string `json:"price"`
-	Amount        *string `json:"amount"`
-	VatPercent    *string `json:"vat_percent"`
-	VatAmount     *string `json:"vat_amount"`
-	UseMarking    bool    `json:"use_marking"`
+	ID                         int     `json:"id"`
+	LineNum                    int     `json:"line_num"`
+	ProductID                  int     `json:"product_id"`
+	Product                    *Ref    `json:"product"`
+	MeasureUnitID              int     `json:"measure_unit_id"`
+	MeasureUnit                *Ref    `json:"measure_unit"`
+	QuantRequired              float64 `json:"quant_required"`
+	Quant                      float64 `json:"quant"`
+	Price                      *string `json:"price"`
+	Amount                     *string `json:"amount"`
+	VatPercent                 *string `json:"vat_percent"`
+	VatAmount                  *string `json:"vat_amount"`
+	UseMarking                 bool    `json:"use_marking"`
+	RequiresWeightConfirmation bool    `json:"requires_weight_confirmation"`
+	WeightConfirmed            bool    `json:"weight_confirmed"`
 }
 
 type UpdateOrderDocumentRequest struct {

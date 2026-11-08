@@ -88,6 +88,13 @@ fields:
     default: "true"
     comment: Indicates whether the product is active.
 
+  - name: requires_weight_confirmation
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Requires explicit confirmation of the actual weight on new order items.
+
 list:
   model: ProductList
   table:
@@ -130,6 +137,10 @@ list:
       required: true
 
     - name: is_active
+      type: bool
+      required: true
+
+    - name: requires_weight_confirmation
       type: bool
       required: true
 
@@ -224,7 +235,15 @@ frontend:
         component: checkbox
         default: true
 
+      - field: requires_weight_confirmation
+        label: Требует проверки веса
+        component: checkbox
+        default: false
+
   list:
+    stickyHeader: true
+    resizableColumns: true
+    columnResizeMode: expand
     pageSize: 30
     columns:
       - field: id

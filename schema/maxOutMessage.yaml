@@ -178,6 +178,9 @@ frontend:
     enabled: false
 
   list:
+    stickyHeader: true
+    resizableColumns: true
+    columnResizeMode: expand
     enabled: true
     pageSize: 30
     columns:

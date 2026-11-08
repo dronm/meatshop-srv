@@ -28,6 +28,8 @@ type Product struct {
 	IsGroup bool `json:"is_group" required:"true"`
 	// Indicates whether the product is active.
 	IsActive bool `json:"is_active" required:"true"`
+	// Requires explicit confirmation of the actual weight on new order items.
+	RequiresWeightConfirmation bool `json:"requires_weight_confirmation" required:"true"`
 }
 
 func (m Product) Relation() string {
@@ -42,15 +44,16 @@ const productListRelation = "public.products_list"
 
 // ProductList is the collection projection for products.
 type ProductList struct {
-	ID            int    `json:"id" primaryKey:"true"`
-	ParentID      *int   `json:"parent_id"`
-	Name          string `json:"name" required:"true"`
-	MeasureUnitID *int   `json:"measure_unit_id"`
-	Ref1C         *Ref1c `json:"ref_1c"`
-	MeasureUnit   *Ref   `json:"measure_unit"`
-	SortOrder     int    `json:"sort_order" required:"true"`
-	IsGroup       bool   `json:"is_group" required:"true"`
-	IsActive      bool   `json:"is_active" required:"true"`
+	ID                         int    `json:"id" primaryKey:"true"`
+	ParentID                   *int   `json:"parent_id"`
+	Name                       string `json:"name" required:"true"`
+	MeasureUnitID              *int   `json:"measure_unit_id"`
+	Ref1C                      *Ref1c `json:"ref_1c"`
+	MeasureUnit                *Ref   `json:"measure_unit"`
+	SortOrder                  int    `json:"sort_order" required:"true"`
+	IsGroup                    bool   `json:"is_group" required:"true"`
+	IsActive                   bool   `json:"is_active" required:"true"`
+	RequiresWeightConfirmation bool   `json:"requires_weight_confirmation" required:"true"`
 }
 
 func (m ProductList) Relation() string {

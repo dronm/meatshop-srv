@@ -13,7 +13,8 @@ SELECT
 	t.sort_order,
 	t.is_group,
 	t.is_active,
-	t.ref_1c
+	t.ref_1c,
+	t.requires_weight_confirmation
 
 FROM public.products AS t
 LEFT JOIN measure_units AS mu ON mu.id = t.measure_unit_id

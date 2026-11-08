@@ -36,6 +36,9 @@ func (s *OrderService) Create(
 		if err := datePolicy.validate(document.ForDate); err != nil {
 			return err
 		}
+		if err := defaultAdminOrderStatus(ctx, tx, document); err != nil {
+			return err
+		}
 
 		if err := tx.QueryRow(ctx, `
 			INSERT INTO public.orders (

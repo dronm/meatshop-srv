@@ -107,6 +107,9 @@ frontend:
         default: true
 
   list:
+    stickyHeader: true
+    resizableColumns: true
+    columnResizeMode: expand
     pageSize: 30
     columns:
       - field: id

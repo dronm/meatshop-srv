@@ -502,7 +502,7 @@ func (s *MaxMiniAppService) Orders(ctx context.Context, lastOrderID *int) ([]*mo
 		); err != nil {
 			return nil, err
 		}
-		item.CanChange = item.StatusCode == "new"
+		item.CanChange = canCustomerChangeOrder(item.StatusCode)
 		result = append(result, item)
 	}
 	return result, rows.Err()
@@ -550,7 +550,7 @@ func (s *MaxMiniAppService) CreateOrder(ctx context.Context, input models.MaxOrd
 		if err := datePolicy.validate(forDate); err != nil {
 			return err
 		}
-		statusID, err := orderStatusID(ctx, tx, "new")
+		statusID, err := orderStatusID(ctx, tx, orderStatusProcessing)
 		if err != nil {
 			return err
 		}
@@ -563,7 +563,7 @@ func (s *MaxMiniAppService) CreateOrder(ctx context.Context, input models.MaxOrd
 		`, forDate, *maxUser.CustomerID, input.CustomerSalePlaceID, maxUser.ID, statusID, trimOptionalString(input.CommentCustomer)).Scan(&orderID, &version); err != nil {
 			return err
 		}
-		if err := replaceMaxOrderItems(ctx, tx, orderID, input.Items); err != nil {
+		if err := syncMaxOrderItems(ctx, tx, orderID, input.Items); err != nil {
 			return err
 		}
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, orderID); err != nil {
@@ -608,6 +608,9 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 		if err := validateMaxSalePlace(ctx, tx, *maxUser.CustomerID, input.CustomerSalePlaceID); err != nil {
 			return err
 		}
+		if err := lockProductRegisterRecorders(ctx, tx, orderRecorderType, input.ID); err != nil {
+			return err
+		}
 		var currentVersion int64
 		var statusCode string
 		var currentForDate time.Time
@@ -623,7 +626,7 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 			}
 			return err
 		}
-		if statusCode != "new" {
+		if !canCustomerChangeOrder(statusCode) {
 			return webapp.Conflict("order can no longer be changed by customer", map[string]any{"status": statusCode})
 		}
 		if currentVersion != input.Version {
@@ -640,6 +643,11 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 				return err
 			}
 		}
+		// Resolve every old line before changing the header. Ambiguous duplicate
+		// rows have no safe MAX identity and must fail before any writes.
+		if err := syncMaxOrderItems(ctx, tx, input.ID, input.Items); err != nil {
+			return err
+		}
 		var newVersion int64
 		if err := tx.QueryRow(ctx, `
 			UPDATE public.orders
@@ -647,12 +655,6 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 			WHERE id = $1
 			RETURNING version
 		`, input.ID, forDate, trimOptionalString(input.CommentCustomer), maxUser.ID, input.CustomerSalePlaceID).Scan(&newVersion); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `DELETE FROM public.order_items WHERE order_id = $1`, input.ID); err != nil {
-			return err
-		}
-		if err := replaceMaxOrderItems(ctx, tx, input.ID, input.Items); err != nil {
 			return err
 		}
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, input.ID); err != nil {
@@ -898,33 +900,6 @@ func parseMaxDate(value string) (time.Time, error) {
 	return parsed, nil
 }
 
-func replaceMaxOrderItems(ctx context.Context, tx ds.Querier, orderID int, items []models.MaxOrderItemInput) error {
-	for index, item := range items {
-		var measureUnitID int
-		if err := tx.QueryRow(ctx, `SELECT measure_unit_id FROM public.products WHERE id = $1 AND is_active AND NOT is_group AND measure_unit_id IS NOT NULL`, item.ProductID).Scan(&measureUnitID); err != nil {
-			if errors.Is(err, ds.ErrNoRows) {
-				return webapp.BadRequest("product is not available for ordering", map[string]any{"product_id": item.ProductID})
-			}
-			return err
-		}
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO public.order_items (line_num, order_id, product_id, measure_unit_id, quant_required, quant)
-			VALUES ($1, $2, $3, $4, $5, $5)
-		`, index+1, orderID, item.ProductID, measureUnitID, item.QuantRequired); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func orderStatusID(ctx context.Context, tx ds.Querier, code string) (int, error) {
-	var id int
-	if err := tx.QueryRow(ctx, `SELECT id FROM public.order_statuses WHERE code = $1`, code).Scan(&id); err != nil {
-		return 0, fmt.Errorf("load order status %q: %w", code, err)
-	}
-	return id, nil
-}
-
 func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int) (*models.MaxOrderDetail, error) {
 	rows, err := db.Query(ctx, `
 		SELECT o.id, o.version, o.for_date, o.number_1c, o.ref_1c, st.code, st.name,
@@ -942,7 +917,9 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 			CASE WHEN unit.id IS NULL THEN NULL ELSE jsonb_build_object('keys', jsonb_build_object('id', unit.id), 'descr', unit.name) END,
 			oi.quant_required::double precision, COALESCE(oi.quant, 0)::double precision,
 			oi.price::text, oi.amount::text, oi.vat_percent::text, oi.vat_amount::text,
-			COALESCE(oi.use_marking, FALSE)
+			COALESCE(oi.use_marking, FALSE),
+			COALESCE(p.requires_weight_confirmation, FALSE),
+			COALESCE(oi.weight_confirmed, FALSE)
 		FROM public.orders o
 		JOIN public.order_statuses st ON st.id = o.status_id
 		JOIN public.customers c ON c.id = o.customer_id
@@ -974,19 +951,20 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 		var comment *string
 		var quantReq, quant *float64
 		var price, amount, vatPercent, vatAmount *string
-		var useMarking bool
+		var useMarking, requiresWeightConfirmation, weightConfirmed bool
 		var scannedOrderID int
 		if err := rows.Scan(&scannedOrderID, &version, &forDate, &number1C, &ref1C, &statusCode, &statusName,
 			&customerIDVal, &customerRef.Descr, &salePlaceID, &salePlaceRef.Descr, &customerUser, &comment,
 			&itemID, &productID, &itemProductName, &measureUnitID, &measureUnit, &quantReq, &quant,
-			&price, &amount, &vatPercent, &vatAmount, &useMarking); err != nil {
+			&price, &amount, &vatPercent, &vatAmount, &useMarking,
+			&requiresWeightConfirmation, &weightConfirmed); err != nil {
 			return nil, err
 		}
 		orderID = &scannedOrderID
 		if result == nil {
 			customerRef.Keys.ID = customerIDVal
 			salePlaceRef.Keys.ID = salePlaceID
-			result = &models.MaxOrderDetail{ID: *orderID, Version: version, ForDate: forDate, Number1C: number1C, Ref1C: ref1C, StatusCode: statusCode, StatusName: statusName, Customer: customerRef, CustomerSalePlace: salePlaceRef, CustomerUser: customerUser, CommentCustomer: comment, CanChange: statusCode == "new", Items: make([]*models.MaxOrderItem, 0)}
+			result = &models.MaxOrderDetail{ID: *orderID, Version: version, ForDate: forDate, Number1C: number1C, Ref1C: ref1C, StatusCode: statusCode, StatusName: statusName, Customer: customerRef, CustomerSalePlace: salePlaceRef, CustomerUser: customerUser, CommentCustomer: comment, CanChange: canCustomerChangeOrder(statusCode), Items: make([]*models.MaxOrderItem, 0)}
 		}
 		if itemID != nil && productID != nil && measureUnitID != nil && quantReq != nil && quant != nil {
 			product := models.Ref{Descr: ""}
@@ -999,7 +977,9 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 				MeasureUnitID: *measureUnitID, MeasureUnit: measureUnit,
 				QuantRequired: *quantReq, Quant: *quant,
 				Price: price, Amount: amount, VatPercent: vatPercent, VatAmount: vatAmount,
-				UseMarking: useMarking,
+				UseMarking:                 useMarking,
+				RequiresWeightConfirmation: requiresWeightConfirmation,
+				WeightConfirmed:            weightConfirmed,
 			})
 		}
 	}

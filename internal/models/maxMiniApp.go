@@ -109,18 +109,20 @@ type MaxOrderListItem struct {
 }
 
 type MaxOrderItem struct {
-	ID            int     `json:"id"`
-	ProductID     int     `json:"product_id"`
-	Product       Ref     `json:"product"`
-	MeasureUnitID int     `json:"measure_unit_id"`
-	MeasureUnit   *Ref    `json:"measure_unit,omitempty"`
-	QuantRequired float64 `json:"quant_required"`
-	Quant         float64 `json:"quant"`
-	Price         *string `json:"price"`
-	Amount        *string `json:"amount"`
-	VatPercent    *string `json:"vat_percent"`
-	VatAmount     *string `json:"vat_amount"`
-	UseMarking    bool    `json:"use_marking"`
+	ID                         int     `json:"id"`
+	ProductID                  int     `json:"product_id"`
+	Product                    Ref     `json:"product"`
+	MeasureUnitID              int     `json:"measure_unit_id"`
+	MeasureUnit                *Ref    `json:"measure_unit,omitempty"`
+	QuantRequired              float64 `json:"quant_required"`
+	Quant                      float64 `json:"quant"`
+	Price                      *string `json:"price"`
+	Amount                     *string `json:"amount"`
+	VatPercent                 *string `json:"vat_percent"`
+	VatAmount                  *string `json:"vat_amount"`
+	UseMarking                 bool    `json:"use_marking"`
+	RequiresWeightConfirmation bool    `json:"requires_weight_confirmation"`
+	WeightConfirmed            bool    `json:"weight_confirmed"`
 }
 
 type MaxOrderDetail struct {

@@ -24,7 +24,7 @@ func customerRoutes(api *webapp.Group) {
 		webapp.WithName("customer.list"),
 		webapp.WithPermission("customer.list"),
 		webapp.WithService("Customer", "List"),
-		webapp.WithBinder(webapp.CollectionParamsBinder()),
+		webapp.WithBinder(webapp.CollectionParamsWithWhereBinder()),
 	)
 
 	api.GET(

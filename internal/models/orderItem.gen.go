@@ -33,6 +33,8 @@ type OrderItem struct {
 	VatAmount *float64 `json:"vat_amount"`
 	// Line use marking flag.
 	UseMarking bool `json:"use_marking" required:"true"`
+	// Actual weight was explicitly confirmed for this order item.
+	WeightConfirmed bool `json:"weight_confirmed" required:"true"`
 }
 
 func (m OrderItem) Relation() string {

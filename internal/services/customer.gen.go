@@ -170,7 +170,7 @@ func (s *CustomerService) Detail(
 
 func (s *CustomerService) List(
 	ctx context.Context,
-	params modelbind.CollectionParams,
+	params modelbind.CollectionParamsWithWhere,
 ) (wmodels.CollectionResponse[*models.CustomerList], error) {
 	if err := s.requireSession(); err != nil {
 		return wmodels.CollectionResponse[*models.CustomerList]{}, err
@@ -179,7 +179,7 @@ func (s *CustomerService) List(
 		return wmodels.CollectionResponse[*models.CustomerList]{}, err
 	}
 
-	rows, total, err := webapp.FetchCollectionModel(ctx, s.DB, &models.CustomerList{}, params)
+	rows, total, err := webapp.FetchCollectionModelWhere(ctx, s.DB, &models.CustomerList{}, params)
 	if err != nil {
 		return wmodels.CollectionResponse[*models.CustomerList]{}, fmt.Errorf(
 			"fetch customer collection: %w",

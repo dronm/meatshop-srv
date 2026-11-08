@@ -9,6 +9,9 @@ Meatshop is the Go/PostgreSQL backend for the ordering application. It provides 
 - [Order document and product register](docs/order-document-register.md) — Order aggregate and register behavior.
 - [Order date policy](docs/order-date-policy.md) — cutoff, holiday calendar, customer privilege, and MAX client limits.
 - [Batch order status changes](docs/order-batch-status.md) — collection selection, atomic updates, permissions and notifications.
+- [Removing selected order lines](docs/order-lines-removal.md) — zero confirmed quantities, retained order history, synchronization and the active preparation list.
+- [Customer marking setting](docs/customer-marking.md) — customer-level checkbox and the preparation collection projection.
+- [Order weight confirmation](docs/order-weight-confirmation.md) — product requirements, manager decisions and stable MAX item updates.
 - [MAX bot](docs/max-bot.md) — MAX bot integration and message processing.
 - [MAX notifications](docs/notifications.md) — templates, responsible recipients, Order events and delivery flow.
 

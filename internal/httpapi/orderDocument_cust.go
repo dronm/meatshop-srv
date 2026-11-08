@@ -45,6 +45,13 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithBinder(orderStatusChangeJSONBinder()),
 	)
 	api.POST(
+		"/order/remove-lines",
+		webapp.WithName("order.removeLines"),
+		webapp.WithPermission("order.update"),
+		webapp.WithService("Order", "RemoveLines"),
+		webapp.WithBinder(orderLinesRemoveJSONBinder()),
+	)
+	api.POST(
 		"/order/print-1c",
 		webapp.WithName("order.print1c.batch"),
 		webapp.WithPermission("order.print1c"),

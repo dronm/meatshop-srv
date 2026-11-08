@@ -64,6 +64,13 @@ username is absent. If both values are empty, `Не задано` is used. Compl
 registration replaces this provisional value, and subsequent MAX session or bot
 updates preserve the registered name.
 
+## Order statuses
+
+MAX orders start in `processing` (В обработке). Customers may correct orders
+while they are `processing` or legacy `new`; moving to Готовим closes customer
+editing. See [Order status workflow](order-status-workflow.md) for the complete
+status mapping and admin defaults.
+
 ## Admin notifications
 
 The main API exposes:

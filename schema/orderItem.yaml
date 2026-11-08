@@ -111,6 +111,13 @@ fields:
     default: "false"
     comment: Line use marking flag.
 
+  - name: weight_confirmed
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Actual weight was explicitly confirmed for this order item.
+
 crud:
   create: false
   list: true

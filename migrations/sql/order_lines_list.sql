@@ -13,12 +13,16 @@ SELECT
 	items.price,
 	items.amount,
 	items.vat_amount,
-	items.use_marking,
+	COALESCE(customer.use_marking, false) AS use_marking,
 	items.id AS item_id,
 	items.line_num,
 	o.ref_1c,
 	o.for_date,
-	order_statuses_ref(order_status) AS status
+	order_statuses_ref(order_status) AS status,
+	o.comment_customer,
+	o.comment_admin,
+	COALESCE(p.requires_weight_confirmation, false) AS requires_weight_confirmation,
+	items.weight_confirmed
 FROM public.order_items AS items
 LEFT JOIN public.orders AS o ON o.id = items.order_id
 LEFT JOIN public.customers AS customer
@@ -29,4 +33,6 @@ LEFT JOIN public.products AS p
 	ON p.id = items.product_id
 LEFT JOIN public.order_statuses AS order_status
 	ON order_status.id = o.status_id
+WHERE items.quant > 0
 ORDER BY o.id DESC, items.line_num, items.id;
+

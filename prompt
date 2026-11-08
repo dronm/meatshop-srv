@@ -1,32 +1,13 @@
-Please, make some modifications to my app:
 
-1. I need to modify the route order-lines.
-- I want to completely remove a column "Строка"
-- I need to search on all columns, even reference once, I have this feature in my library.
-Reference columns should create a reference field on a search panel, so a user should first
-find an element he is interested in, then the search should be done on its key.
-So, eventually an exact search should be done on referenceField->'keys'->>'id', not a 
-ilike search on referenceField->>'descr'. But do not invent anything, I have all features
-in my vue-collection-lib, vue-business-app and my backend modelbind library.
-Specifically I need a filter on "Customer" and "Sale place" and "Production"
-Quantity, price, amount, vet, marking - these columns do not need searching
+Could you analyse how to implement this requirement:
 
-- I need a column "order date" and of course it should be searchable.
+8. Позиция "Тушка" всегда когда заявка только упала должна подсветиться крсным (Имеено количество) 
+потому что клиент заказывает например 20кг, но когда мы по факту взвешиваем тушку там вес может немного отличаться, 
+например 21,1кг и меньше никак не сделать, в связи с этим получается что мы всегда меняем вес тушки. 
+Поэтому пусть она подсвечивается красным, это значит что нам надо зайти в эту заявку и 
+откорректировать вес, после чего цвет должен стать обычным. 
+Заранее говорю что может быть такое что заказали 10кг и у нас вышл ровно 10кг, в таком случае i
+я должна зайти в карточку товара и просто нажать какую нибудь галочку рядом с тушкой типо 
+"Без изменений". Такой функционал сделать только на тушке.
 
-2. The default page (the one that opens on app loading) should be this orderLines collection.
-
-******************************
-I need to modify my 1c integration:
-Right now, a newly placed order is passed to 1c. I want to be able to do it "on demand" with a button in.
-orders and orderLines collections.
-But I want to be able to select orders in a collection (already have this feature), then press a button "Create order",
-just like "Create shipment". This feature should be in both: orders collection and in orderLines collection.
-Modify my backend to support this multiple order feature and remove autogenerating orders on creation.
-Please, check my obrabotka 1c code, make a feature to create multiple orders. 
-Do not remove the old method.
-Also, correct my mock 1c server
-
-*******************************************
-I have one issue: when an order is modified, the notification is sent to MAX, that is cool,
-but sometimes users do not modify product quantity, but remove completely the line. I want also
-to send notification in this case. Please, check.
+Do not code, just share your ideas.

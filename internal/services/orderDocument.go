@@ -178,7 +178,9 @@ func fetchOrderDetail(
 			item.amount::text,
 			item.vat_percent::text,
 			item.vat_amount::text,
-			COALESCE(item.use_marking, FALSE)
+			COALESCE(item.use_marking, FALSE),
+			COALESCE(product.requires_weight_confirmation, FALSE),
+			COALESCE(item.weight_confirmed, FALSE)
 		FROM public.orders AS orders
 		JOIN public.customers AS customer
 			ON customer.id = orders.customer_id
@@ -215,7 +217,7 @@ func fetchOrderDetail(
 		var product, measureUnit *models.Ref
 		var quantRequired, quant *float64
 		var price, amount, vatPercent, vatAmount *string
-		var useMarking bool
+		var useMarking, requiresWeightConfirmation, weightConfirmed bool
 
 		if err := rows.Scan(
 			&documentID,
@@ -247,6 +249,8 @@ func fetchOrderDetail(
 			&vatPercent,
 			&vatAmount,
 			&useMarking,
+			&requiresWeightConfirmation,
+			&weightConfirmed,
 		); err != nil {
 			return nil, err
 		}
@@ -275,19 +279,21 @@ func fetchOrderDetail(
 
 		if itemID != nil {
 			detail.Items = append(detail.Items, &models.OrderDetailItem{
-				ID:            *itemID,
-				LineNum:       *lineNum,
-				ProductID:     *productID,
-				Product:       product,
-				MeasureUnitID: *measureUnitID,
-				MeasureUnit:   measureUnit,
-				QuantRequired: *quantRequired,
-				Quant:         *quant,
-				Price:         price,
-				Amount:        amount,
-				VatPercent:    vatPercent,
-				VatAmount:     vatAmount,
-				UseMarking:    useMarking,
+				ID:                         *itemID,
+				LineNum:                    *lineNum,
+				ProductID:                  *productID,
+				Product:                    product,
+				MeasureUnitID:              *measureUnitID,
+				MeasureUnit:                measureUnit,
+				QuantRequired:              *quantRequired,
+				Quant:                      *quant,
+				Price:                      price,
+				Amount:                     amount,
+				VatPercent:                 vatPercent,
+				VatAmount:                  vatAmount,
+				UseMarking:                 useMarking,
+				RequiresWeightConfirmation: requiresWeightConfirmation,
+				WeightConfirmed:            weightConfirmed,
 			})
 		}
 	}
@@ -307,9 +313,49 @@ func syncOrderItems(
 	orderID int,
 	items []*models.OrderDocumentItem,
 ) error {
-	existing, err := orderDocumentItemIDs(ctx, tx, orderID)
+	existing, err := loadOrderItemWeightStates(ctx, tx, orderID)
 	if err != nil {
 		return err
+	}
+	requirements, err := loadOrderProductWeightRequirements(ctx, tx, items)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		var old *orderItemWeightState
+		if state, exists := existing[item.ID]; exists {
+			old = &state
+		}
+		confirmed := adminOrderItemWeightConfirmed(item, old, requirements[item.ProductID])
+		item.WeightConfirmed = &confirmed
+	}
+	return syncResolvedOrderItems(ctx, tx, orderID, items, existing)
+}
+
+// syncResolvedOrderItems persists an already resolved admin or MAX line set.
+// Both callers decide confirmation before writing; this layer preserves IDs and
+// requested quantities while keeping the existing physical-removal semantics.
+func syncResolvedOrderItems(
+	ctx context.Context,
+	tx ds.Querier,
+	orderID int,
+	items []*models.OrderDocumentItem,
+	existing map[int]orderItemWeightState,
+) error {
+	remaining := make(map[int]struct{}, len(existing))
+	for id := range existing {
+		remaining[id] = struct{}{}
+	}
+	for index, item := range items {
+		if item.WeightConfirmed == nil {
+			return invalidOrderDocumentItem(index, "weight confirmation state was not resolved")
+		}
+		if item.ID != 0 {
+			if _, exists := remaining[item.ID]; !exists {
+				return invalidOrderDocumentItem(index, "id does not belong to this order or is duplicated")
+			}
+			delete(remaining, item.ID)
+		}
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -335,19 +381,17 @@ func syncOrderItems(
 					product_id,
 					measure_unit_id,
 					quant_required,
-					quant
+					quant,
+					weight_confirmed
 				)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				VALUES ($1, $2, $3, $4, $5, $6, $7)
 				RETURNING id
-			`, index+1, orderID, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant).Scan(&item.ID); err != nil {
+			`, index+1, orderID, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed).Scan(&item.ID); err != nil {
 				return err
 			}
 			continue
 		}
 
-		if _, ok := existing[item.ID]; !ok {
-			return invalidOrderDocumentItem(index, "id does not belong to this order")
-		}
 		if _, err := tx.Exec(ctx, `
 			UPDATE public.order_items
 			SET
@@ -355,16 +399,16 @@ func syncOrderItems(
 				product_id = $4,
 				measure_unit_id = $5,
 				quant_required = $6,
-				quant = $7
+				quant = $7,
+				weight_confirmed = $8
 			WHERE id = $1
 				AND order_id = $2
-		`, item.ID, orderID, index+1, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant); err != nil {
+		`, item.ID, orderID, index+1, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed); err != nil {
 			return err
 		}
-		delete(existing, item.ID)
 	}
 
-	for itemID := range existing {
+	for itemID := range remaining {
 		if _, err := tx.Exec(
 			ctx,
 			"DELETE FROM public.order_items WHERE id = $1 AND order_id = $2",
@@ -376,35 +420,4 @@ func syncOrderItems(
 	}
 
 	return nil
-}
-
-func orderDocumentItemIDs(
-	ctx context.Context,
-	tx ds.Querier,
-	orderID int,
-) (map[int]struct{}, error) {
-	rows, err := tx.Query(ctx, `
-		SELECT id
-		FROM public.order_items
-		WHERE order_id = $1
-		FOR UPDATE
-	`, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make(map[int]struct{})
-	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		result[id] = struct{}{}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }

@@ -65,6 +65,13 @@ fields:
     default: "false"
     comment: Allows orders whose for_date is a holiday.
 
+  - name: use_marking
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Customer marking setting shown in the order preparation list.
+
 list:
   model: CustomerList
   table:
@@ -89,6 +96,9 @@ list:
       type: bool
 
     - name: is_active
+      type: bool
+
+    - name: use_marking
       type: bool
 
 crud:
@@ -167,8 +177,19 @@ frontend:
         component: checkbox
         default: false
 
+      - field: use_marking
+        label: Маркировка
+        component: checkbox
+        default: false
+
   list:
+    stickyHeader: true
+    resizableColumns: true
+    columnResizeMode: expand
     pageSize: 30
+    infiniteScroll:
+      enabled: true
+      chunkSize: 100
     columns:
       - field: id
         label: ID
@@ -185,6 +206,10 @@ frontend:
       - field: is_active
         label: Активна
         width: 8rem
+
+      - field: use_marking
+        label: Маркировка
+        width: 9rem
 
   routes:
     listName: customers

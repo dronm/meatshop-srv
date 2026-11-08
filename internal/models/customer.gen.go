@@ -23,6 +23,8 @@ type Customer struct {
 	IsActive bool   `json:"is_active" required:"true"`
 	// Allows orders whose for_date is a holiday.
 	AllowHolidayOrders bool `json:"allow_holiday_orders" required:"true"`
+	// Customer marking setting shown in the order preparation list.
+	UseMarking bool `json:"use_marking" required:"true"`
 }
 
 func (m Customer) Relation() string {
@@ -43,6 +45,7 @@ type CustomerList struct {
 	Kpp         *string `json:"kpp"`
 	Ref1CExists bool    `json:"ref_1c_exists"`
 	IsActive    bool    `json:"is_active"`
+	UseMarking  bool    `json:"use_marking"`
 }
 
 func (m CustomerList) Relation() string {
