@@ -376,20 +376,24 @@ The result consumer supports an optional keyed payload:
 		{
 			"order_id": 101,
 			"id": "shipment-uuid-101",
-			"descr": "Shipment 101"
+			"descr": "Shipment 101",
+			"number_1c": "00000101"
 		},
 		{
 			"order_id": 102,
 			"id": "shipment-uuid-102",
-			"descr": "Shipment 102"
+			"descr": "Shipment 102",
+			"number_1c": "00000102"
 		}
 	]
 }
 ```
 
-Each valid keyed item updates `orders.shipment_ref_1c` for that local Order.
-The current mock returns `"payload": []`; this is accepted as a successful
-no-op, but it cannot populate `shipment_ref_1c`.
+Each valid keyed item updates `orders.shipment_ref_1c` and stores the document
+number as text in `orders.shipment_number_1c`. Older responses may omit
+`number_1c`. An omitted or blank number preserves the stored number for the
+same shipment UUID and clears it when the UUID changes. The empty payload
+returned by the mock is accepted as a successful no-op.
 
 ### Print shipments synchronously
 

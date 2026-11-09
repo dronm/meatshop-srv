@@ -32,6 +32,8 @@ type OrderLineList struct {
 	RequiresWeightConfirmation bool      `json:"requires_weight_confirmation"`
 	WeightConfirmed            bool      `json:"weight_confirmed"`
 	Mercury                    bool      `json:"mercury"`
+	Number1C                   *string   `json:"number_1c"`
+	ShipmentNumber1C           *string   `json:"shipment_number_1c"`
 }
 
 func (m OrderLineList) Relation() string {

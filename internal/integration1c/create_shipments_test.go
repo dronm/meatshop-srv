@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestCreateShipmentsUsesExecuteAndReturnsReferences(t *testing.T) {
+func TestCreateShipmentsUsesExecuteAndReturnsShipmentDetails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", r.Method)
@@ -36,7 +36,7 @@ func TestCreateShipmentsUsesExecuteAndReturnsReferences(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"success": true,
 			"payload": [
-				{"order_id": 101, "id": "shipment-101", "descr": "Shipment 101"},
+				{"order_id": 101, "id": "shipment-101", "descr": "Shipment 101", "number_1c": "MS-0000101"},
 				{"order_id": 102, "id": "shipment-102", "descr": "Shipment 102"}
 			]
 		}`))
@@ -50,7 +50,7 @@ func TestCreateShipmentsUsesExecuteAndReturnsReferences(t *testing.T) {
 	}
 
 	want := []CreateShipmentResult{
-		{OrderID: 101, ID: "shipment-101", Descr: "Shipment 101"},
+		{OrderID: 101, ID: "shipment-101", Descr: "Shipment 101", Number1C: "MS-0000101"},
 		{OrderID: 102, ID: "shipment-102", Descr: "Shipment 102"},
 	}
 	if !reflect.DeepEqual(result, want) {

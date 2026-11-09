@@ -165,7 +165,11 @@ func (s *OrderService) Update(
 				for_date = $2,
 				number_1c = $3,
 				ref_1c = $4,
-				shipment_ref_1c = $5,
+				shipment_ref_1c = $5::jsonb,
+				shipment_number_1c = CASE
+					WHEN (shipment_ref_1c->>'id') = ($5::jsonb->>'id')
+						THEN shipment_number_1c
+				END,
 				customer_id = $6,
 				customer_sale_place_id = $7,
 				customer_user_id = $8,

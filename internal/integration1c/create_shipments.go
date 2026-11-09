@@ -5,9 +5,10 @@ import "context"
 const CommandCreateShipments = "create_shipments"
 
 type CreateShipmentResult struct {
-	OrderID int    `json:"order_id"`
-	ID      string `json:"id"`
-	Descr   string `json:"descr"`
+	OrderID  int    `json:"order_id"`
+	ID       string `json:"id"`
+	Descr    string `json:"descr"`
+	Number1C string `json:"number_1c,omitempty"`
 }
 
 type CreateShipmentsResponse struct {

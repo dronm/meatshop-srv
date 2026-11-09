@@ -1,24 +1,44 @@
 I want to add a logistics module to my project.
 What I need:
+
 1. All sale places have addresses. I want to add a Map (Open Street map) on its edit page and a button "Find by address" ("Найти по адресу").
-It should call a server method. On the server I have Nominatim, I want to find lon/lat by the given address and return these coordinates 
+It should call a server method. On the server I have Nominatim installed, I want to find lon/lat by the given address and return these coordinates 
 to the client. The client should add a marker on the map. These coordinates should be stored with the sale place.
-2. I need a catalogue of vehicles. id, registration plate, load capacity.
-3. I need a new field in sale places: working hours. Here a 'works till' value is the most important. Because it will influence on the order.
-4. I need a form to assign orders to vehicles. I want a user to select these parameters:
-- a date. This should be an input with <- and -> buttons.
-- vehicles. All vehicles form vehicles collection should be shown, but the user
-can disable some.
-I want the form to contain a collection or orders for that date.
-Дата поствки | счет 1С |Контрагент |Точка доставки |Продукция |	Кол-во |Рекомендуемое время для поставки | Маркировка |Примечание к доставке:
-Products contains all product items from the order (comma separated list)
-Quantity - I am not sure for now, might be a total weight.
-Recommended time - is the hour till from sale place.
-Comment - this should be editable and should be stored on edit.
-One vehicle can make multiple runs.
 
-I need a button to autoassign orders, something like "Distribute".
-It should create a shipment queue. The backend should use OSRM to calculate the optimal order.
+2. I need a catalogue of vehicles. id, registration plate.
 
+3. I need a new field in sale places: working hours. Here a 'works till' value is the most important. Because it will influence on the delivery order.
+
+4. I need a form to assign orders to vehicles. 
+At the form top there should be a date with <- and -> buttons. This filters orders by for_date field.
+Then there should be a collection with vehicles. There should be a checkbox that defines if the 
+vehicle is present in the delivery. When a user sets the firs vehicle (set its checkbox to true),
+all orders are marked for the delivery by that vehicle.
+Vehicles are filled from the catalogue and can not be edited in this collection.
+Then goes a collection with orders.
+Авто| Рейс | маршрут | счет 1С |Контрагент |Точка доставки |Продукция |	Кол-во |Рекомендуемое время для поставки | Маркировка |Примечание к доставке:
+Рейс is a number of the run for a vehilce as one vehicle can make multiple runs.
+маршрут is the delivery sequence of the order in the run. It is a number.
+The collection is sorted by vehicle, run, delivery order.
+Run and delivery sequence are inputs with +/- and can be edited directly without any button
+to enter an edit mode. Orders can also be drag and dropped with a mouse inside its vehicle and run.
+In this case delivery sequence changes according to the new order.
+There should be a button to set a specific vehicle for marked orders (default library marking with shift).
+
+So, the workflow is like this: a user sets vehicles, runs and can also set delivery sequence,
+but he can also do it automatically.
+I need a button to make a sorting on the server using OSRM.
+
+Comment can also be edited and stored for every order. This should also be an input without
+any edit mode and stored automatically on change with a debounce.
+
+There should be a button to print Delivery list per every vehicle that are marked with a checkbox.
+Дата поствки | 	Очередь доставки |	Маршрут | 	Номер счета (из 1С) |	Контрагент|	Точка доставки|	Продукция | 	Кол-во |	Рекомендуемое время для поставки|	Маркировка|	Примечание к доставке:
+So, I need one HTML with line breaks per vehicle.
 
 You can change English names of tables, fields as you wish.
+
+First, I want you to make a plan of how this could be implemented.
+Second, I want you to estimate in hours how much time it will take to implement this change
+to a project, including OSRM, Nominatim installations. Just calculate how many hours it will
+take for a qualified engineer to implement such a system.

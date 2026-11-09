@@ -200,9 +200,15 @@ func HandleCreateShipments1CResult(
 		}
 		tag, err := tx.Exec(ctx, `
 			UPDATE public.orders
-			SET shipment_ref_1c = $2::jsonb
+			SET shipment_ref_1c = $2::jsonb,
+				shipment_number_1c = COALESCE(
+					NULLIF($3::text, ''),
+					CASE WHEN (shipment_ref_1c->>'id') = ($2::jsonb->>'id')
+						THEN shipment_number_1c
+					END
+				)
 			WHERE id = $1
-		`, shipment.OrderID, refJSON)
+		`, shipment.OrderID, refJSON, strings.TrimSpace(shipment.Number1C))
 		if err != nil {
 			return fmt.Errorf(
 				"apply create_shipments result to order %d: %w",

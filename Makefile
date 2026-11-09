@@ -7,7 +7,6 @@ MIGRATIONS_DIR := $(ROOT_DIR)migrations
 SQL_MIGRATIONS_DIR := $(MIGRATIONS_DIR)/sql
 DEPLOY_DIR := $(ROOT_DIR)deploy
 BUILD_OUTPUT := $(ROOT_DIR)$(APP_NAME)
-MAX_BUILD_OUTPUT := $(ROOT_DIR)max
 
 API_BASE_URL ?= http://127.0.0.1:59000
 API_USER ?= admin
@@ -36,13 +35,7 @@ API_PWD ?= 123456
 	deploy-full \
 	deploy-backend \
 	deploy-frontend \
-	deploy-no-migrations \
-	deploy-max \
-	deploy-max-backend \
-	deploy-max-frontend \
-	deploy-all \
-	deploy-migrations \
-	deploy-plan
+	deploy-no-migrations
 
 # Development build with debugging information.
 build:
@@ -55,7 +48,7 @@ build:
 build-max:
 	@echo "Building MAX bot..."
 	@go -C "$(ROOT_DIR)" build \
-		-o "$(MAX_BUILD_OUTPUT)" \
+		-o "$(ROOT_DIR)max" \
 		./cmd/max
 
 # Run the application directly from source.
@@ -106,7 +99,7 @@ prod-max:
 	@CGO_ENABLED=0 go -C "$(ROOT_DIR)" build \
 		-trimpath \
 		-ldflags="-s -w" \
-		-o "$(MAX_BUILD_OUTPUT)" \
+		-o "$(ROOT_DIR)max" \
 		./cmd/max
 
 migup:
@@ -172,24 +165,6 @@ deploy-no-migrations:
 	@"$(DEPLOY_DIR)/deploy.sh" --skip-migrations
 
 deploy: deploy-full
-
-deploy-max:
-	@"$(DEPLOY_DIR)/deploy.sh" --max
-
-deploy-max-backend:
-	@"$(DEPLOY_DIR)/deploy.sh" --max-backend-only
-
-deploy-max-frontend:
-	@"$(DEPLOY_DIR)/deploy.sh" --max-frontend-only
-
-deploy-all:
-	@"$(DEPLOY_DIR)/deploy.sh" --all
-
-deploy-migrations:
-	@"$(DEPLOY_DIR)/deploy.sh" --migrations-only
-
-deploy-plan:
-	@"$(DEPLOY_DIR)/deploy.sh" --dry-run
 
 # Run the Go code generator.
 # Usage:

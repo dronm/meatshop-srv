@@ -1224,6 +1224,7 @@
 	Результат.Вставить("order_id", НомерЗаказа);
 	Результат.Вставить("id", СокрЛП(Строка(СсылкаНаОтгрузку.УникальныйИдентификатор())));
 	Результат.Вставить("descr", СокрЛП(Строка(СсылкаНаОтгрузку)));
+	Результат.Вставить("number_1c", СокрЛП(Строка(СсылкаНаОтгрузку.Номер)));
 
 	Возврат Результат;
 КонецФункции
@@ -1241,7 +1242,8 @@
 //	"order_ids": [101, 102]
 // }
 // Creates one shipment per order; retries return existing shipment references.
-// Payload: an array of {order_id, id, descr} in the requested order.
+// Payload: an array of {order_id, id, descr, number_1c} in the requested order.
+// number_1c is the saved shipment document number as a string.
 Процедура ВыполнитьСозданиеОтгрузок(СтрокаПараметров, Ответ)
 	НомераЗаказов = ПолучитьНомераЗаказов(СтрокаПараметров);
 	ПорядокБлокировок = ОтсортированныеНомераЗаказов(НомераЗаказов);

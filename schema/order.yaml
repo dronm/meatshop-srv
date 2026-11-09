@@ -55,6 +55,12 @@ fields:
     nullable: true
     comment: Reference to 1c shipment object.
 
+  - name: shipment_number_1c
+    type: text
+    nullable: true
+    serverGenerated: true
+    comment: Shipment document number returned by 1C.
+
   - name: customer_id
     type: int
     required: true
