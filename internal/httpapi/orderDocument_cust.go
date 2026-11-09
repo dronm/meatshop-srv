@@ -49,7 +49,14 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithName("order.removeLines"),
 		webapp.WithPermission("order.update"),
 		webapp.WithService("Order", "RemoveLines"),
-		webapp.WithBinder(orderLinesRemoveJSONBinder()),
+		webapp.WithBinder(orderLineIDsJSONBinder()),
+	)
+	api.POST(
+		"/order/toggle-lines-mercury",
+		webapp.WithName("order.toggleLinesMercury"),
+		webapp.WithPermission("order.update"),
+		webapp.WithService("Order", "ToggleLinesMercury"),
+		webapp.WithBinder(orderLineIDsJSONBinder()),
 	)
 	api.POST(
 		"/order/print-1c",

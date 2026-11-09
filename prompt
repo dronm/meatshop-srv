@@ -1,13 +1,24 @@
+I want to add a logistics module to my project.
+What I need:
+1. All sale places have addresses. I want to add a Map (Open Street map) on its edit page and a button "Find by address" ("Найти по адресу").
+It should call a server method. On the server I have Nominatim, I want to find lon/lat by the given address and return these coordinates 
+to the client. The client should add a marker on the map. These coordinates should be stored with the sale place.
+2. I need a catalogue of vehicles. id, registration plate, load capacity.
+3. I need a new field in sale places: working hours. Here a 'works till' value is the most important. Because it will influence on the order.
+4. I need a form to assign orders to vehicles. I want a user to select these parameters:
+- a date. This should be an input with <- and -> buttons.
+- vehicles. All vehicles form vehicles collection should be shown, but the user
+can disable some.
+I want the form to contain a collection or orders for that date.
+Дата поствки | счет 1С |Контрагент |Точка доставки |Продукция |	Кол-во |Рекомендуемое время для поставки | Маркировка |Примечание к доставке:
+Products contains all product items from the order (comma separated list)
+Quantity - I am not sure for now, might be a total weight.
+Recommended time - is the hour till from sale place.
+Comment - this should be editable and should be stored on edit.
+One vehicle can make multiple runs.
 
-Could you analyse how to implement this requirement:
+I need a button to autoassign orders, something like "Distribute".
+It should create a shipment queue. The backend should use OSRM to calculate the optimal order.
 
-8. Позиция "Тушка" всегда когда заявка только упала должна подсветиться крсным (Имеено количество) 
-потому что клиент заказывает например 20кг, но когда мы по факту взвешиваем тушку там вес может немного отличаться, 
-например 21,1кг и меньше никак не сделать, в связи с этим получается что мы всегда меняем вес тушки. 
-Поэтому пусть она подсвечивается красным, это значит что нам надо зайти в эту заявку и 
-откорректировать вес, после чего цвет должен стать обычным. 
-Заранее говорю что может быть такое что заказали 10кг и у нас вышл ровно 10кг, в таком случае i
-я должна зайти в карточку товара и просто нажать какую нибудь галочку рядом с тушкой типо 
-"Без изменений". Такой функционал сделать только на тушке.
 
-Do not code, just share your ideas.
+You can change English names of tables, fields as you wish.

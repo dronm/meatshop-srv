@@ -15,8 +15,8 @@ import (
 )
 
 func TestOrderLinesRemoveIDsDeduplicateWithoutMutatingSelection(t *testing.T) {
-	input := models.OrderLinesRemoveRequest{ItemIDs: []int{303, 301, 303, 302}}
-	ids, err := orderLinesRemoveIDs(input)
+	input := models.OrderLineIDsRequest{ItemIDs: []int{303, 301, 303, 302}}
+	ids, err := validatedOrderLineIDs(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,14 +29,14 @@ func TestOrderLinesRemoveIDsDeduplicateWithoutMutatingSelection(t *testing.T) {
 }
 
 func TestOrderLinesRemoveIDsRejectInvalidRequests(t *testing.T) {
-	for _, input := range []models.OrderLinesRemoveRequest{
+	for _, input := range []models.OrderLineIDsRequest{
 		{},
 		{ItemIDs: []int{}},
 		{ItemIDs: []int{301, 0}},
 		{ItemIDs: []int{-1}},
-		{ItemIDs: make([]int, orderLinesRemoveMaxItems+1)},
+		{ItemIDs: make([]int, orderLineIDsMaxItems+1)},
 	} {
-		if _, err := orderLinesRemoveIDs(input); err == nil {
+		if _, err := validatedOrderLineIDs(input); err == nil {
 			t.Fatalf("invalid input was accepted: %#v", input)
 		}
 	}

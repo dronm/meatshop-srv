@@ -24,20 +24,21 @@ func TestOrderDocumentRoutesReplaceGeneratedEndpoints(t *testing.T) {
 		permission  string
 		handler     bool
 	}{
-		"order.create":            {http.MethodPost, "/api/order", "Create", "order.create", false},
-		"order.detail":            {http.MethodGet, "/api/order/{id}", "DocumentDetail", "order.detail", false},
-		"order.update":            {http.MethodPut, "/api/order/{id}", "Update", "order.update", false},
-		"order.changeStatus":      {http.MethodPost, "/api/order/change-status", "ChangeStatus", "order.update", false},
-		"order.removeLines":       {http.MethodPost, "/api/order/remove-lines", "RemoveLines", "order.update", false},
-		"order.create1c":          {http.MethodPost, "/api/order/{id}/create-1c", "Create1C", "order.create1c", false},
-		"order.create1c.batch":    {http.MethodPost, "/api/order/create-orders-1c", "CreateOrders1C", "order.create1c", false},
-		"order.print1c":           {http.MethodGet, "/api/order/{id}/print-1c", "", "order.print1c", true},
-		"order.print1c.batch":     {http.MethodPost, "/api/order/print-1c", "", "order.print1c", true},
-		"order.createShipments1c": {http.MethodPost, "/api/order/create-shipments-1c", "CreateShipments1C", "order.createShipments1c", false},
-		"order.printShipment1c":   {http.MethodPost, "/api/order/print-shipment-1c", "", "order.printShipment1c", true},
-		"order.delete":            {http.MethodDelete, "/api/order/{id}", "Delete", "order.delete", false},
-		"order.list":              {http.MethodGet, "/api/order", "List", "order.list", false},
-		"order.lines.list":        {http.MethodGet, "/api/order/lines", "LinesList", "order.list", false},
+		"order.create":             {http.MethodPost, "/api/order", "Create", "order.create", false},
+		"order.detail":             {http.MethodGet, "/api/order/{id}", "DocumentDetail", "order.detail", false},
+		"order.update":             {http.MethodPut, "/api/order/{id}", "Update", "order.update", false},
+		"order.changeStatus":       {http.MethodPost, "/api/order/change-status", "ChangeStatus", "order.update", false},
+		"order.removeLines":        {http.MethodPost, "/api/order/remove-lines", "RemoveLines", "order.update", false},
+		"order.toggleLinesMercury": {http.MethodPost, "/api/order/toggle-lines-mercury", "ToggleLinesMercury", "order.update", false},
+		"order.create1c":           {http.MethodPost, "/api/order/{id}/create-1c", "Create1C", "order.create1c", false},
+		"order.create1c.batch":     {http.MethodPost, "/api/order/create-orders-1c", "CreateOrders1C", "order.create1c", false},
+		"order.print1c":            {http.MethodGet, "/api/order/{id}/print-1c", "", "order.print1c", true},
+		"order.print1c.batch":      {http.MethodPost, "/api/order/print-1c", "", "order.print1c", true},
+		"order.createShipments1c":  {http.MethodPost, "/api/order/create-shipments-1c", "CreateShipments1C", "order.createShipments1c", false},
+		"order.printShipment1c":    {http.MethodPost, "/api/order/print-shipment-1c", "", "order.printShipment1c", true},
+		"order.delete":             {http.MethodDelete, "/api/order/{id}", "Delete", "order.delete", false},
+		"order.list":               {http.MethodGet, "/api/order", "List", "order.list", false},
+		"order.lines.list":         {http.MethodGet, "/api/order/lines", "LinesList", "order.list", false},
 	}
 
 	found := make(map[string]int, len(want))

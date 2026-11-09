@@ -180,7 +180,8 @@ func fetchOrderDetail(
 			item.vat_amount::text,
 			COALESCE(item.use_marking, FALSE),
 			COALESCE(product.requires_weight_confirmation, FALSE),
-			COALESCE(item.weight_confirmed, FALSE)
+			COALESCE(item.weight_confirmed, FALSE),
+			COALESCE(item.mercury, FALSE)
 		FROM public.orders AS orders
 		JOIN public.customers AS customer
 			ON customer.id = orders.customer_id
@@ -217,7 +218,7 @@ func fetchOrderDetail(
 		var product, measureUnit *models.Ref
 		var quantRequired, quant *float64
 		var price, amount, vatPercent, vatAmount *string
-		var useMarking, requiresWeightConfirmation, weightConfirmed bool
+		var useMarking, requiresWeightConfirmation, weightConfirmed, mercury bool
 
 		if err := rows.Scan(
 			&documentID,
@@ -251,6 +252,7 @@ func fetchOrderDetail(
 			&useMarking,
 			&requiresWeightConfirmation,
 			&weightConfirmed,
+			&mercury,
 		); err != nil {
 			return nil, err
 		}
@@ -294,6 +296,7 @@ func fetchOrderDetail(
 				UseMarking:                 useMarking,
 				RequiresWeightConfirmation: requiresWeightConfirmation,
 				WeightConfirmed:            weightConfirmed,
+				Mercury:                    mercury,
 			})
 		}
 	}
@@ -382,11 +385,12 @@ func syncResolvedOrderItems(
 					measure_unit_id,
 					quant_required,
 					quant,
-					weight_confirmed
+					weight_confirmed,
+					mercury
 				)
-				VALUES ($1, $2, $3, $4, $5, $6, $7)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, FALSE))
 				RETURNING id
-			`, index+1, orderID, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed).Scan(&item.ID); err != nil {
+			`, index+1, orderID, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed, item.Mercury).Scan(&item.ID); err != nil {
 				return err
 			}
 			continue
@@ -400,10 +404,11 @@ func syncResolvedOrderItems(
 				measure_unit_id = $5,
 				quant_required = $6,
 				quant = $7,
-				weight_confirmed = $8
+				weight_confirmed = $8,
+				mercury = COALESCE($9, mercury)
 			WHERE id = $1
 				AND order_id = $2
-		`, item.ID, orderID, index+1, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed); err != nil {
+		`, item.ID, orderID, index+1, item.ProductID, item.MeasureUnitID, item.QuantRequired, item.Quant, *item.WeightConfirmed, item.Mercury); err != nil {
 			return err
 		}
 	}

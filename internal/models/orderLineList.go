@@ -31,6 +31,7 @@ type OrderLineList struct {
 	CommentAdmin               *string   `json:"comment_admin"`
 	RequiresWeightConfirmation bool      `json:"requires_weight_confirmation"`
 	WeightConfirmed            bool      `json:"weight_confirmed"`
+	Mercury                    bool      `json:"mercury"`
 }
 
 func (m OrderLineList) Relation() string {

@@ -13,11 +13,11 @@ import (
 func TestOrderLinesRemoveJSONBinderUsesItemIDs(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/order/remove-lines",
 		strings.NewReader(`{"item_ids":[301,302,301]}`))
-	bound, err := orderLinesRemoveJSONBinder()(request)
+	bound, err := orderLineIDsJSONBinder()(request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := models.OrderLinesRemoveRequest{ItemIDs: []int{301, 302, 301}}
+	want := models.OrderLineIDsRequest{ItemIDs: []int{301, 302, 301}}
 	if !reflect.DeepEqual(bound, want) {
 		t.Fatalf("bound = %#v, want %#v", bound, want)
 	}
@@ -33,15 +33,15 @@ func TestOrderLinesRemoveJSONBinderRejectsMalformedRequests(t *testing.T) {
 		`{"item_ids":["301"]}`,
 		`{"item_ids":301}`,
 		`{"item_ids":[301]`,
-		strings.Repeat(" ", orderLinesRemoveMaxBodySize+1),
+		strings.Repeat(" ", orderLineIDsMaxBodySize+1),
 	} {
 		request := httptest.NewRequest(http.MethodPost, "/api/order/remove-lines", strings.NewReader(body))
-		if _, err := orderLinesRemoveJSONBinder()(request); err == nil {
+		if _, err := orderLineIDsJSONBinder()(request); err == nil {
 			t.Fatalf("invalid body of %d bytes was accepted: %.100s", len(body), body)
 		}
 	}
 	for _, request := range []*http.Request{nil, {}} {
-		if _, err := orderLinesRemoveJSONBinder()(request); err == nil {
+		if _, err := orderLineIDsJSONBinder()(request); err == nil {
 			t.Fatal("missing request body was accepted")
 		}
 	}

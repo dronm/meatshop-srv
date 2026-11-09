@@ -22,7 +22,8 @@ SELECT
 	o.comment_customer,
 	o.comment_admin,
 	COALESCE(p.requires_weight_confirmation, false) AS requires_weight_confirmation,
-	items.weight_confirmed
+	items.weight_confirmed,
+	items.mercury
 FROM public.order_items AS items
 LEFT JOIN public.orders AS o ON o.id = items.order_id
 LEFT JOIN public.customers AS customer

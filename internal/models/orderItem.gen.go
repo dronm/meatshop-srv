@@ -35,6 +35,8 @@ type OrderItem struct {
 	UseMarking bool `json:"use_marking" required:"true"`
 	// Actual weight was explicitly confirmed for this order item.
 	WeightConfirmed bool `json:"weight_confirmed" required:"true"`
+	// Order item is marked for Mercury.
+	Mercury bool `json:"mercury" required:"true"`
 }
 
 func (m OrderItem) Relation() string {

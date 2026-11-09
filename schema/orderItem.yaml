@@ -118,6 +118,13 @@ fields:
     default: "false"
     comment: Actual weight was explicitly confirmed for this order item.
 
+  - name: mercury
+    type: bool
+    required: true
+    dbRequired: true
+    default: "false"
+    comment: Order item is marked for Mercury.
+
 crud:
   create: false
   list: true

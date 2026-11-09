@@ -29,6 +29,7 @@ type OrderDocumentItem struct {
 	QuantRequired   float64 `json:"quant_required"`
 	Quant           float64 `json:"quant"`
 	WeightConfirmed *bool   `json:"weight_confirmed,omitempty"`
+	Mercury         *bool   `json:"mercury,omitempty"`
 }
 
 // OrderDetail is the complete Order aggregate returned by detail, create, and
@@ -71,6 +72,7 @@ type OrderDetailItem struct {
 	UseMarking                 bool    `json:"use_marking"`
 	RequiresWeightConfirmation bool    `json:"requires_weight_confirmation"`
 	WeightConfirmed            bool    `json:"weight_confirmed"`
+	Mercury                    bool    `json:"mercury"`
 }
 
 type UpdateOrderDocumentRequest struct {

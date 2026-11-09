@@ -12,13 +12,13 @@ import (
 	wmodels "github.com/dronm/webapp/models"
 )
 
-const orderLinesRemoveMaxItems = 1000
+const orderLineIDsMaxItems = 1000
 
 // RemoveLines removes selected items from preparation by setting their confirmed
 // quantity to zero. Requested quantities, item IDs and parent orders are retained.
 func (s *OrderService) RemoveLines(
 	ctx context.Context,
-	input models.OrderLinesRemoveRequest,
+	input models.OrderLineIDsRequest,
 ) (wmodels.RowsAffectedResponse, error) {
 	if err := s.requireSession(); err != nil {
 		return wmodels.RowsAffectedResponse{}, err
@@ -26,7 +26,7 @@ func (s *OrderService) RemoveLines(
 	if err := s.requireDB(); err != nil {
 		return wmodels.RowsAffectedResponse{}, err
 	}
-	itemIDs, err := orderLinesRemoveIDs(input)
+	itemIDs, err := validatedOrderLineIDs(input)
 	if err != nil {
 		return wmodels.RowsAffectedResponse{}, err
 	}
@@ -42,12 +42,12 @@ func (s *OrderService) RemoveLines(
 	return wmodels.RowsAffectedResponse{RowsAffected: changed}, nil
 }
 
-func orderLinesRemoveIDs(input models.OrderLinesRemoveRequest) ([]int, error) {
+func validatedOrderLineIDs(input models.OrderLineIDsRequest) ([]int, error) {
 	if len(input.ItemIDs) == 0 {
 		return nil, webapp.BadRequest("at least one order item should be selected", nil)
 	}
-	if len(input.ItemIDs) > orderLinesRemoveMaxItems {
-		return nil, webapp.BadRequest("too many order item ids", map[string]any{"maximum": orderLinesRemoveMaxItems})
+	if len(input.ItemIDs) > orderLineIDsMaxItems {
+		return nil, webapp.BadRequest("too many order item ids", map[string]any{"maximum": orderLineIDsMaxItems})
 	}
 	seen := make(map[int]struct{}, len(input.ItemIDs))
 	ids := make([]int, 0, len(input.ItemIDs))
