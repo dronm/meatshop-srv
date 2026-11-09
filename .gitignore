@@ -1,5 +1,7 @@
 .env
 prompt
 meatshop
+max
 *.zip
 config.json
+deploy/deploy.conf

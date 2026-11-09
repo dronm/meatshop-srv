@@ -1,0 +1,35 @@
+# Copy this trusted Bash file to deploy.conf and edit it.
+SERVERS=(meatshop-prod-1 meatshop-prod-2)
+
+# All hosts use the same remote paths and service names.
+REMOTE_RELEASES_DIR=/srv/meatshop/releases
+REMOTE_MEATSHOP_PATH=/srv/meatshop/backend
+REMOTE_MAX_PATH=/srv/meatshop/max
+REMOTE_ADMIN_PATH=/srv/meatshop/admin
+REMOTE_MAX_APP_PATH=/srv/meatshop/max-app
+MEATSHOP_UNIT=meatshop.service
+MAX_UNIT=max.service
+SYSTEMCTL_MODE=sudo
+DEPLOY_GOARCH=amd64
+
+# Optional HTTP readiness checks. The URLs are requested from each server.
+# MEATSHOP_HEALTH_URL=http://127.0.0.1:59000/health
+# MAX_HEALTH_URL=http://127.0.0.1:59001/health
+# ADMIN_HEALTH_URL=https://myasmasters.katren.org/
+# MAX_APP_HEALTH_URL=https://myasmasters.katren.org/max-app/
+
+# By default the first server runs the migration. This file exists there
+# and sets DB_CONN to a PostgreSQL URL for the primary database.
+# MIGRATION_HOST=meatshop-prod-1
+REMOTE_DB_ENV_FILE=/etc/meatshop/migration.env
+MIGRATE_BIN=migrate
+
+# Project directories can be absolute or relative to the backend repo.
+# Output directories can be absolute or relative to their frontend project.
+ADMIN_DIR=/path/to/meatshop-admin
+ADMIN_DIST_DIR=dist
+ADMIN_BUILD_CMD=(npm run build)
+
+MAX_APP_DIR=/path/to/meatshop-max-app
+MAX_APP_DIST_DIR=dist
+MAX_APP_BUILD_CMD=(npm run build -- --base=/max-app/)
