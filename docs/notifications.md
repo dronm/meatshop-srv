@@ -52,6 +52,28 @@ Only active MAX accounts are queued. A responsible employee therefore needs a MA
 
 An old quantity mismatch that is left unchanged does not generate another notification on an unrelated edit.
 
+The customer message is rendered from the editable `order_changed` template
+(`event = order.changed`) in `public.notification_templates`; its body is not
+hardcoded in the sender. Open **Шаблоны уведомлений** in the admin app and edit
+this template to change the wording.
+
+`SalePlaceName` is already populated from the saved Order's sale place for status,
+quantity and line-removal notifications. To display it, add this line to the body:
+
+```text
+Точка продажи: {{.SalePlaceName}}
+```
+
+Migration `000075_order_changed_sale_place` appends this line to every
+`order.changed` template that does not already reference `.SalePlaceName`,
+including inactive templates. Existing wording, activation flags and recipient
+settings are preserved. Templates that already use the field are left unchanged.
+The same migration runs for existing databases and fresh installations; migration
+`000038` does not need to be rerun. Already queued MAX messages keep their rendered
+text; newly queued notifications use the updated template. The down migration
+deliberately preserves editable template content; the added line can be removed
+through the template editor if necessary.
+
 Removed lines are detected by the local line ID, so two lines for the same product are distinguished. Their descriptions and quantities come from the snapshot taken before deletion. Removal details are included in `ChangedItems`, preserving compatibility with existing notification templates, for example:
 
 ```text
