@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	integration "github.com/dronm/meatshop/internal/integration1c"
 	"github.com/dronm/meatshop/internal/integration1cworker"
 	"github.com/dronm/meatshop/internal/models"
+	"github.com/dronm/webapp"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -60,19 +62,27 @@ func enqueueCreateShipments1C(
 	tx ds.Querier,
 	orderIDs []int,
 ) (models.Integration1CJobResponse, error) {
-	params, err := json.Marshal(integration.OrderIDsParams{
-		OrderIDs: append([]int(nil), orderIDs...),
+	// The caller holds every selected parent row FOR UPDATE, serializing this
+	// readiness check and snapshot with corrections and their queue insertions.
+	versions, err := shipmentInvoiceVersions(ctx, tx, orderIDs)
+	if err != nil {
+		return models.Integration1CJobResponse{}, err
+	}
+	params, err := json.Marshal(integration.CreateShipmentsParams{
+		OrderIDs:      append([]int(nil), orderIDs...),
+		OrderVersions: versions,
 	})
 	if err != nil {
 		return models.Integration1CJobResponse{}, fmt.Errorf("marshal create_shipments params: %w", err)
 	}
-	metadata, err := json.Marshal(models.OrderIDsRequest{
-		OrderIDs: append([]int(nil), orderIDs...),
+	metadata, err := json.Marshal(integration.CreateShipmentsParams{
+		OrderIDs:      append([]int(nil), orderIDs...),
+		OrderVersions: versions,
 	})
 	if err != nil {
 		return models.Integration1CJobResponse{}, fmt.Errorf("marshal create_shipments metadata: %w", err)
 	}
-	correlationID := createShipments1CCorrelationID(orderIDs)
+	correlationID := createShipments1CCorrelationID(orderIDs, versions)
 
 	var response models.Integration1CJobResponse
 	if err := tx.QueryRow(ctx, `
@@ -106,12 +116,132 @@ func enqueueCreateShipments1C(
 	return response, nil
 }
 
-func createShipments1CCorrelationID(orderIDs []int) string {
+func createShipments1CCorrelationID(orderIDs []int, versions []integration.ShipmentOrderVersion) string {
 	canonicalIDs := append([]int(nil), orderIDs...)
 	sort.Ints(canonicalIDs)
-	value, _ := json.Marshal(canonicalIDs)
+	canonicalVersions := append([]integration.ShipmentOrderVersion(nil), versions...)
+	sort.Slice(canonicalVersions, func(i, j int) bool { return canonicalVersions[i].OrderID < canonicalVersions[j].OrderID })
+	value, _ := json.Marshal(integration.CreateShipmentsParams{OrderIDs: canonicalIDs, OrderVersions: canonicalVersions})
 	digest := sha256.Sum256(value)
 	return fmt.Sprintf("%s%x", createShipments1CCorrelationPrefix, digest)
+}
+
+type shipmentInvoiceSync struct {
+	jobID      *int64
+	command    *string
+	status     *string
+	params     json.RawMessage
+	metadata   json.RawMessage
+	outcome    *string
+	httpStatus *int
+	body       []byte
+	consumed   bool
+	active     bool
+}
+
+func shipmentInvoiceVersions(ctx context.Context, tx ds.Querier, orderIDs []int) ([]integration.ShipmentOrderVersion, error) {
+	versions := make([]integration.ShipmentOrderVersion, 0, len(orderIDs))
+	for _, id := range orderIDs {
+		var version int64
+		var invoiceRef string
+		var sync shipmentInvoiceSync
+		if err := tx.QueryRow(ctx, `
+			SELECT o.version, COALESCE(o.ref_1c->>'id', ''), latest.id, latest.command,
+				latest.status, latest.params, latest.metadata, r.outcome, r.http_status,
+				r.body, COALESCE(r.consumed_at IS NOT NULL, FALSE),
+				EXISTS (SELECT 1 FROM integration_1c.jobs AS pending
+					WHERE pending.status IN ('queued', 'processing') AND (
+						(pending.command = 'create_order' AND pending.params->>'order_id' = $2)
+						OR (pending.command = 'create_orders' AND pending.params->'orders' @> $3::jsonb)
+					))
+			FROM public.orders AS o
+			LEFT JOIN LATERAL (
+				SELECT j.* FROM integration_1c.jobs AS j
+				WHERE (j.command = 'create_order' AND j.params->>'order_id' = $2)
+					OR (j.command = 'create_orders' AND j.params->'orders' @> $3::jsonb)
+				ORDER BY j.id DESC LIMIT 1
+			) AS latest ON TRUE
+			LEFT JOIN integration_1c.results AS r ON r.job_id = latest.id
+			WHERE o.id = $1
+		`, id, fmt.Sprint(id), fmt.Sprintf(`[{"order_id":%d}]`, id)).Scan(
+			&version, &invoiceRef, &sync.jobID, &sync.command, &sync.status, &sync.params, &sync.metadata,
+			&sync.outcome, &sync.httpStatus, &sync.body, &sync.consumed, &sync.active,
+		); err != nil {
+			return nil, fmt.Errorf("load invoice synchronization before shipment: %w", err)
+		}
+		// A previously linked/imported invoice without queue history remains usable.
+		if sync.jobID == nil && !sync.active {
+			continue
+		}
+		current, err := order1CParams(ctx, tx, id, version)
+		if err != nil {
+			return nil, err
+		}
+		if !shipmentInvoiceSynchronized(current, invoiceRef, sync) {
+			return nil, webapp.Conflict("Дождитесь успешного обновления счета 1С перед созданием отгрузки.",
+				map[string]any{"order_id": id, "job_id": sync.jobID})
+		}
+		versions = append(versions, integration.ShipmentOrderVersion{OrderID: id, OrderVersion: version})
+	}
+	return versions, nil
+}
+
+func shipmentInvoiceSynchronized(current integration.CreateOrderParams, invoiceRef string, sync shipmentInvoiceSync) bool {
+	if sync.active || sync.status == nil || *sync.status != "completed" || !sync.consumed ||
+		sync.command == nil || sync.outcome == nil || *sync.outcome != "http_response" ||
+		sync.httpStatus == nil || *sync.httpStatus < http.StatusOK || *sync.httpStatus >= http.StatusMultipleChoices ||
+		*sync.httpStatus == http.StatusNoContent {
+		return false
+	}
+	var snapshot integration.CreateOrderParams
+	var result integration.CreateOrderResult
+	switch *sync.command {
+	case integration.CommandCreateOrder:
+		var response integration.CreateOrderResponse
+		if json.Unmarshal(sync.params, &snapshot) != nil || json.Unmarshal(sync.body, &response) != nil ||
+			!response.Success || response.Payload == nil {
+			return false
+		}
+		result = *response.Payload
+	case integration.CommandCreateOrders:
+		params, err := CreateOrdersJobParams(sync.params)
+		var response integration.CreateOrdersResponse
+		if err != nil || json.Unmarshal(sync.body, &response) != nil {
+			return false
+		}
+		for index := range response.Payload {
+			normalizeLegacyOrder1CMarking(sync.metadata, response.Payload[index].Items)
+		}
+		if validateCreateOrdersResult(params, response) != nil {
+			return false
+		}
+		for _, order := range params.Orders {
+			if order.OrderID == current.OrderID {
+				snapshot = order
+			}
+		}
+		for _, order := range response.Payload {
+			if order.OrderID == current.OrderID {
+				result = order.CreateOrderResult
+			}
+		}
+	default:
+		return false
+	}
+	snapshot.CustomerName, snapshot.CustomerPhone = trimOptionalString(snapshot.CustomerName), trimOptionalString(snapshot.CustomerPhone)
+	if !reflect.DeepEqual(current, snapshot) || strings.TrimSpace(result.ID) == "" || strings.TrimSpace(result.ID) != strings.TrimSpace(invoiceRef) {
+		return false
+	}
+	if result.Items == nil {
+		// A versioned snapshot with local line IDs requires returned calculations;
+		// the result consumer rejects a header-only response for such a job too.
+		return false
+	}
+	normalizeLegacyOrder1CMarking(sync.metadata, result.Items)
+	if _, err := validateOrder1CItemResults(snapshot, result.Items); err != nil {
+		return false
+	}
+	return true
 }
 
 func HandleCreateShipments1CResult(

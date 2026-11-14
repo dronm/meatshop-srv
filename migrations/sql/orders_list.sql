@@ -15,7 +15,10 @@ SELECT
 	order_statuses_ref(order_status) AS status,
 	orders.comment_customer,
 	orders.comment_admin,
-	orders.shipment_ref_1c
+	orders.shipment_ref_1c,
+	orders.cash_payed,
+	orders.customer_name,
+	orders.customer_phone
 FROM public.orders AS orders
 LEFT JOIN public.customers AS customer
 	ON customer.id = orders.customer_id

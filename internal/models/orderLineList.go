@@ -34,6 +34,9 @@ type OrderLineList struct {
 	Mercury                    bool      `json:"mercury"`
 	Number1C                   *string   `json:"number_1c"`
 	ShipmentNumber1C           *string   `json:"shipment_number_1c"`
+	CashPayed                  bool      `json:"cash_payed"`
+	CustomerName               *string   `json:"customer_name"`
+	CustomerPhone              *string   `json:"customer_phone"`
 }
 
 func (m OrderLineList) Relation() string {

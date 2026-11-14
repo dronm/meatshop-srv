@@ -157,14 +157,15 @@ func (q *removeLinesTestQuerier) Query(_ context.Context, query string, args ...
 			rows.scans = append(rows.scans, func(dest ...any) error {
 				*dest[0].(*int), *dest[1].(*int64) = orderID, q.versions[orderID]
 				*dest[2].(*time.Time) = time.Date(2026, 11, 8, 0, 0, 0, 0, time.UTC)
-				*dest[6].(*int), *dest[8].(*int) = 1, 2
+				*dest[6].(*int) = 1
+				*dest[8].(**int) = intPointer(2)
 				*dest[10].(**int) = q.customerUsers[orderID]
 				*dest[13].(**models.Ref) = &models.Ref{Descr: "В обработке"}
-				*dest[16].(**int), *dest[17].(**int), *dest[18].(**int) = &id, &item.LineNum, &item.ProductID
-				*dest[19].(**models.Ref) = &models.Ref{Descr: item.ProductName}
+				*dest[19].(**int), *dest[20].(**int), *dest[21].(**int) = &id, &item.LineNum, &item.ProductID
+				*dest[22].(**models.Ref) = &models.Ref{Descr: item.ProductName}
 				measureUnitID := 1
-				*dest[20].(**int) = &measureUnitID
-				*dest[22].(**float64), *dest[23].(**float64) = &item.QuantRequired, &item.Quant
+				*dest[23].(**int) = &measureUnitID
+				*dest[25].(**float64), *dest[26].(**float64) = &item.QuantRequired, &item.Quant
 				return nil
 			})
 		}

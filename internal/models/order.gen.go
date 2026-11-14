@@ -23,10 +23,18 @@ type Order struct {
 	Ref1C *Ref1c `json:"ref_1c"`
 	// Reference to 1c shipment object.
 	ShipmentRef1C *Ref1c `json:"shipment_ref_1c"`
+	// Shipment document number returned by 1C.
+	ShipmentNumber1C *string `json:"shipment_number_1c" srvCalc:"true"`
 	// Customer reference
 	CustomerID int `json:"customer_id" required:"true"`
-	// Customer sale place reference
-	CustomerSalePlaceID int `json:"customer_sale_place_id" required:"true"`
+	// Customer sale place reference; required unless cash_payed is true.
+	CustomerSalePlaceID *int `json:"customer_sale_place_id"`
+	// Cash order with optional buyer contact details and no sale place.
+	CashPayed bool `json:"cash_payed"`
+	// Optional actual buyer name saved with the order.
+	CustomerName *string `json:"customer_name"`
+	// Optional actual buyer telephone saved with the order.
+	CustomerPhone *string `json:"customer_phone"`
 	// Customer user reference
 	CustomerUserID *int `json:"customer_user_id"`
 	// Order status reference
@@ -55,6 +63,9 @@ type OrderList struct {
 	CustomerID        int       `json:"customer_id"`
 	Customer          *Ref      `json:"customer"`
 	CustomerSalePlace *Ref      `json:"customer_sale_place"`
+	CashPayed         bool      `json:"cash_payed"`
+	CustomerName      *string   `json:"customer_name"`
+	CustomerPhone     *string   `json:"customer_phone"`
 	CustomerUser      *Ref      `json:"customer_user"`
 	Status            *Ref      `json:"status"`
 	CommentCustomer   *string   `json:"comment_customer"`

@@ -4,6 +4,16 @@ import "context"
 
 const CommandCreateShipments = "create_shipments"
 
+type ShipmentOrderVersion struct {
+	OrderID      int   `json:"order_id"`
+	OrderVersion int64 `json:"order_version"`
+}
+
+type CreateShipmentsParams struct {
+	OrderIDs      []int                  `json:"order_ids"`
+	OrderVersions []ShipmentOrderVersion `json:"order_versions,omitempty"`
+}
+
 type CreateShipmentResult struct {
 	OrderID  int    `json:"order_id"`
 	ID       string `json:"id"`

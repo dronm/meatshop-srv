@@ -5,6 +5,50 @@ import (
 	"testing"
 )
 
+func TestCreateOrderContactSnapshotWireCompatibility(t *testing.T) {
+	name, phone := "Иван", "+7 (912) 123-45-67"
+	request := CreateOrderParams{
+		OrderID: 42, OrderVersion: 3, CustomerID: "existing-counterparty",
+		CashPayed: true, CustomerName: &name, CustomerPhone: &phone,
+		Products: []CreateOrderProduct{{ID: "1c-product", Quant: 2, OrderItemID: 31}},
+	}
+	for _, test := range []struct {
+		name  string
+		value any
+	}{
+		{"single", request},
+		{"batch", CreateOrdersParams{Orders: []CreateOrderParams{request}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := json.Marshal(test.value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded CreateOrderParams
+			if test.name == "batch" {
+				var batch CreateOrdersParams
+				if err := json.Unmarshal(encoded, &batch); err != nil {
+					t.Fatal(err)
+				}
+				decoded = batch.Orders[0]
+			} else if err := json.Unmarshal(encoded, &decoded); err != nil {
+				t.Fatal(err)
+			}
+			if !decoded.CashPayed || decoded.CustomerName == nil || *decoded.CustomerName != name ||
+				decoded.CustomerPhone == nil || *decoded.CustomerPhone != phone || decoded.CustomerID != request.CustomerID {
+				t.Fatalf("contact snapshot did not survive JSON: %s", encoded)
+			}
+		})
+	}
+	var legacy CreateOrderParams
+	if err := json.Unmarshal([]byte(`{"order_id":42,"order_version":1,"customer_id":"existing-counterparty","products":[]}`), &legacy); err != nil {
+		t.Fatal(err)
+	}
+	if legacy.CashPayed || legacy.CustomerName != nil || legacy.CustomerPhone != nil {
+		t.Fatalf("legacy payload should default to optional contacts: %#v", legacy)
+	}
+}
+
 func TestCreateOrderResponse(t *testing.T) {
 	var response CreateOrderResponse
 	if err := json.Unmarshal([]byte(`{

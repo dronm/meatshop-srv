@@ -20,10 +20,13 @@ type CreateOrdersResponse struct {
 }
 
 type CreateOrderParams struct {
-	OrderID      int                  `json:"order_id"`
-	OrderVersion int64                `json:"order_version"`
-	CustomerID   string               `json:"customer_id"`
-	Products     []CreateOrderProduct `json:"products"`
+	OrderID       int                  `json:"order_id"`
+	OrderVersion  int64                `json:"order_version"`
+	CustomerID    string               `json:"customer_id"`
+	CashPayed     bool                 `json:"cash_payed"`
+	CustomerName  *string              `json:"customer_name,omitempty"`
+	CustomerPhone *string              `json:"customer_phone,omitempty"`
+	Products      []CreateOrderProduct `json:"products"`
 }
 
 type CreateOrderProduct struct {

@@ -8,6 +8,33 @@ import (
 	"github.com/dronm/meatshop/internal/integration1cworker"
 )
 
+func TestOrder1CContactSnapshotRejectsStaleContacts(t *testing.T) {
+	name, phone := "Иван", "+79121234567"
+	otherName, otherPhone, blank := "Пётр", "+79127654321", "  "
+	params := integration.CreateOrderParams{CashPayed: true, CustomerName: &name, CustomerPhone: &phone}
+	for _, test := range []struct {
+		name                        string
+		cashPayed                   bool
+		customerName, customerPhone *string
+		wantMatch                   bool
+	}{
+		{"same contacts", true, &name, &phone, true},
+		{"different name", true, &otherName, &phone, false},
+		{"different phone", true, &name, &otherPhone, false},
+		{"different cash flag", false, &name, &phone, false},
+		{"cleared contacts", true, &blank, nil, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := order1CContactsMatch(params, test.cashPayed, test.customerName, test.customerPhone); got != test.wantMatch {
+				t.Fatalf("contacts match = %t, want %t", got, test.wantMatch)
+			}
+		})
+	}
+	if !order1CContactsMatch(integration.CreateOrderParams{}, false, &blank, nil) {
+		t.Fatal("legacy jobs without contacts should match an ordinary order with empty contacts")
+	}
+}
+
 func TestOrderIDFrom1CResultMetadata(t *testing.T) {
 	metadata, err := json.Marshal(map[string]any{"order_id": 42})
 	if err != nil {

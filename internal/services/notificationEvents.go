@@ -209,12 +209,14 @@ func orderNotificationDataFromMaxDetail(detail *models.MaxOrderDetail, resubmitt
 		return orderNotificationData{}
 	}
 	result := orderNotificationData{
-		OrderID:       detail.ID,
-		ForDate:       formatNotificationDate(detail.ForDate),
-		CustomerName:  detail.Customer.Descr,
-		SalePlaceName: detail.CustomerSalePlace.Descr,
-		StatusName:    detail.StatusName,
-		Resubmitted:   resubmitted,
+		OrderID:      detail.ID,
+		ForDate:      formatNotificationDate(detail.ForDate),
+		CustomerName: detail.Customer.Descr,
+		StatusName:   detail.StatusName,
+		Resubmitted:  resubmitted,
+	}
+	if detail.CustomerSalePlace != nil {
+		result.SalePlaceName = detail.CustomerSalePlace.Descr
 	}
 	if detail.Number1C != nil {
 		result.Number1C = strings.TrimSpace(*detail.Number1C)

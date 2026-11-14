@@ -104,6 +104,9 @@ type MaxOrderListItem struct {
 	CustomerUser       *Ref      `json:"customer_user,omitempty"`
 	CustomerSalePlace  *Ref      `json:"customer_sale_place,omitempty"`
 	ItemsCount         int       `json:"items_count"`
+	CashPayed          bool      `json:"cash_payed"`
+	CustomerName       *string   `json:"customer_name"`
+	CustomerPhone      *string   `json:"customer_phone"`
 	CanChange          bool      `json:"can_change"`
 	HasQuantDifference bool      `json:"has_quant_difference"`
 }
@@ -134,9 +137,12 @@ type MaxOrderDetail struct {
 	StatusCode        string          `json:"status_code"`
 	StatusName        string          `json:"status_name"`
 	Customer          Ref             `json:"customer"`
-	CustomerSalePlace Ref             `json:"customer_sale_place"`
+	CustomerSalePlace *Ref            `json:"customer_sale_place"`
 	CustomerUser      *Ref            `json:"customer_user,omitempty"`
 	CommentCustomer   *string         `json:"comment_customer"`
+	CashPayed         bool            `json:"cash_payed"`
+	CustomerName      *string         `json:"customer_name"`
+	CustomerPhone     *string         `json:"customer_phone"`
 	CanChange         bool            `json:"can_change"`
 	Items             []*MaxOrderItem `json:"items"`
 }

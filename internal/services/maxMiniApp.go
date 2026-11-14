@@ -454,10 +454,10 @@ func (s *MaxMiniAppService) Orders(ctx context.Context, lastOrderID *int) ([]*mo
 						)
 					) 
 			END,
-			jsonb_build_object(
-				'keys', jsonb_build_object('id', sp.id), 
-				'descr', sp.name
-			),
+			customer_sale_places_ref(sp),
+			o.cash_payed,
+			o.customer_name,
+			o.customer_phone,
 			COUNT(oi.id)::int,
 			COALESCE(
 				BOOL_OR(oi.quant IS DISTINCT FROM oi.quant_required),
@@ -466,7 +466,7 @@ func (s *MaxMiniAppService) Orders(ctx context.Context, lastOrderID *int) ([]*mo
 
 		FROM public.orders o
 		JOIN public.order_statuses st ON st.id = o.status_id
-		JOIN public.customer_sale_places sp ON sp.id = o.customer_sale_place_id
+		LEFT JOIN public.customer_sale_places sp ON sp.id = o.customer_sale_place_id
 		LEFT JOIN public.max_users mu ON mu.id = o.customer_user_id
 		LEFT JOIN public.order_items oi ON oi.order_id = o.id
 		WHERE o.customer_id = $1 %s
@@ -497,12 +497,15 @@ func (s *MaxMiniAppService) Orders(ctx context.Context, lastOrderID *int) ([]*mo
 			&item.StatusName,
 			&item.CustomerUser,
 			&item.CustomerSalePlace,
+			&item.CashPayed,
+			&item.CustomerName,
+			&item.CustomerPhone,
 			&item.ItemsCount,
 			&item.HasQuantDifference,
 		); err != nil {
 			return nil, err
 		}
-		item.CanChange = canCustomerChangeOrder(item.StatusCode)
+		item.CanChange = canCustomerChangeOrder(item.StatusCode) && !item.CashPayed
 		result = append(result, item)
 	}
 	return result, rows.Err()
@@ -614,17 +617,21 @@ func (s *MaxMiniAppService) UpdateOrder(ctx context.Context, input models.MaxOrd
 		var currentVersion int64
 		var statusCode string
 		var currentForDate time.Time
+		var cashPayed bool
 		if err := tx.QueryRow(ctx, `
-			SELECT o.version, st.code, o.for_date
+			SELECT o.version, st.code, o.for_date, o.cash_payed
 			FROM public.orders o
 			JOIN public.order_statuses st ON st.id = o.status_id
 			WHERE o.id = $1 AND o.customer_id = $2
 			FOR UPDATE OF o
-		`, input.ID, *maxUser.CustomerID).Scan(&currentVersion, &statusCode, &currentForDate); err != nil {
+		`, input.ID, *maxUser.CustomerID).Scan(&currentVersion, &statusCode, &currentForDate, &cashPayed); err != nil {
 			if errors.Is(err, ds.ErrNoRows) {
 				return webapp.NotFound("order not found", map[string]any{"id": input.ID})
 			}
 			return err
+		}
+		if cashPayed {
+			return webapp.Conflict("cash orders can only be changed by an administrator", map[string]any{"id": input.ID})
 		}
 		if !canCustomerChangeOrder(statusCode) {
 			return webapp.Conflict("order can no longer be changed by customer", map[string]any{"status": statusCode})
@@ -903,7 +910,7 @@ func parseMaxDate(value string) (time.Time, error) {
 func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int) (*models.MaxOrderDetail, error) {
 	rows, err := db.Query(ctx, `
 		SELECT o.id, o.version, o.for_date, o.number_1c, o.ref_1c, st.code, st.name,
-			c.id, c.name, sp.id, sp.name,
+			c.id, c.name, customer_sale_places_ref(sp), o.cash_payed, o.customer_name, o.customer_phone,
 			CASE WHEN mu.id IS NULL THEN NULL ELSE jsonb_build_object(
 				'keys', jsonb_build_object('id', mu.id),
 				'descr', COALESCE(
@@ -923,7 +930,7 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 		FROM public.orders o
 		JOIN public.order_statuses st ON st.id = o.status_id
 		JOIN public.customers c ON c.id = o.customer_id
-		JOIN public.customer_sale_places sp ON sp.id = o.customer_sale_place_id
+		LEFT JOIN public.customer_sale_places sp ON sp.id = o.customer_sale_place_id
 		LEFT JOIN public.max_users mu ON mu.id = o.customer_user_id
 		LEFT JOIN public.order_items oi ON oi.order_id = o.id
 		LEFT JOIN public.products p ON p.id = oi.product_id
@@ -939,8 +946,11 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 	var result *models.MaxOrderDetail
 	for rows.Next() {
 		var orderID, productID, itemID, measureUnitID *int
-		var customerRef, salePlaceRef models.Ref
-		var customerIDVal, salePlaceID int
+		var customerRef models.Ref
+		var salePlaceRef *models.Ref
+		var customerIDVal int
+		var cashPayed bool
+		var customerName, customerPhone *string
 		var itemProductName *string
 		var version int64
 		var forDate time.Time
@@ -954,7 +964,7 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 		var useMarking, requiresWeightConfirmation, weightConfirmed bool
 		var scannedOrderID int
 		if err := rows.Scan(&scannedOrderID, &version, &forDate, &number1C, &ref1C, &statusCode, &statusName,
-			&customerIDVal, &customerRef.Descr, &salePlaceID, &salePlaceRef.Descr, &customerUser, &comment,
+			&customerIDVal, &customerRef.Descr, &salePlaceRef, &cashPayed, &customerName, &customerPhone, &customerUser, &comment,
 			&itemID, &productID, &itemProductName, &measureUnitID, &measureUnit, &quantReq, &quant,
 			&price, &amount, &vatPercent, &vatAmount, &useMarking,
 			&requiresWeightConfirmation, &weightConfirmed); err != nil {
@@ -963,8 +973,7 @@ func fetchMaxOrderDetail(ctx context.Context, db ds.Querier, id, customerID int)
 		orderID = &scannedOrderID
 		if result == nil {
 			customerRef.Keys.ID = customerIDVal
-			salePlaceRef.Keys.ID = salePlaceID
-			result = &models.MaxOrderDetail{ID: *orderID, Version: version, ForDate: forDate, Number1C: number1C, Ref1C: ref1C, StatusCode: statusCode, StatusName: statusName, Customer: customerRef, CustomerSalePlace: salePlaceRef, CustomerUser: customerUser, CommentCustomer: comment, CanChange: canCustomerChangeOrder(statusCode), Items: make([]*models.MaxOrderItem, 0)}
+			result = &models.MaxOrderDetail{ID: *orderID, Version: version, ForDate: forDate, Number1C: number1C, Ref1C: ref1C, StatusCode: statusCode, StatusName: statusName, Customer: customerRef, CustomerSalePlace: salePlaceRef, CustomerUser: customerUser, CommentCustomer: comment, CashPayed: cashPayed, CustomerName: customerName, CustomerPhone: customerPhone, CanChange: canCustomerChangeOrder(statusCode) && !cashPayed, Items: make([]*models.MaxOrderItem, 0)}
 		}
 		if itemID != nil && productID != nil && measureUnitID != nil && quantReq != nil && quant != nil {
 			product := models.Ref{Descr: ""}

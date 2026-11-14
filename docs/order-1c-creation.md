@@ -7,7 +7,8 @@
 - The action sends complete orders, including all their lines, rather than only the selected lines.
 - Correcting an order after its first explicit send continues to synchronize automatically through the existing `create_order` command. This also applies while its first send is queued or processing.
 - An order that has never been sent remains a local draft when corrected. Use the button for its first transmission.
-- The existing shipment and print commands retain their existing behavior and reference requirements.
+- Shipment commands retain the existing invoice-reference requirement and now require the latest invoice synchronization to have succeeded for the current order. New shipment jobs pin verified invoice versions; print behavior is unchanged.
+- Optional order buyer name/phone are included in single/batch snapshots and saved in the 1C invoice and new shipment comments. See [Order customer contacts in 1C](order-customer-contacts-1c.md) for the command fields, installation steps, and correction behavior.
 
 ## Deployment
 

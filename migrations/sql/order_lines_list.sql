@@ -25,7 +25,10 @@ SELECT
 	items.weight_confirmed,
 	items.mercury,
 	o.number_1c,
-	o.shipment_number_1c
+	o.shipment_number_1c,
+	o.cash_payed,
+	o.customer_name,
+	o.customer_phone
 FROM public.order_items AS items
 LEFT JOIN public.orders AS o ON o.id = items.order_id
 LEFT JOIN public.customers AS customer

@@ -7,6 +7,8 @@ table:
   schema: public
   name: orders
   comment: Order document headers.
+  checks:
+    - cash_payed OR customer_sale_place_id IS NOT NULL
 
 route: /order
 permissionPrefix: order
@@ -74,14 +76,30 @@ fields:
 
   - name: customer_sale_place_id
     type: int
-    required: true
+    nullable: true
     references:
       schema: public
       table: customer_sale_places
       column: id
       onDelete: RESTRICT
       onUpdate: CASCADE
-    comment: Customer sale place reference
+    comment: Customer sale place reference; required unless cash_payed is true.
+
+  - name: cash_payed
+    type: bool
+    dbRequired: true
+    default: "false"
+    comment: Cash order with optional buyer contact details and no sale place.
+
+  - name: customer_name
+    type: text
+    nullable: true
+    comment: Optional actual buyer name saved with the order.
+
+  - name: customer_phone
+    type: text
+    nullable: true
+    comment: Optional actual buyer telephone saved with the order.
 
   - name: customer_user_id
     type: int
@@ -151,6 +169,18 @@ list:
     - name: customer_sale_place
       type: json
       goType: "*Ref"
+      nullable: true
+
+    - name: cash_payed
+      type: bool
+
+    - name: customer_name
+      type: text
+      nullable: true
+
+    - name: customer_phone
+      type: text
+      nullable: true
 
     - name: customer_user
       type: json
@@ -265,6 +295,19 @@ frontend:
         componentImport: "@/components/references/CustomerSalePlaceReferenceInput.vue"
         autofocus: false
 
+      - field: cash_payed
+        label: Наличный расчет
+        component: checkbox
+        default: false
+
+      - field: customer_name
+        label: Имя покупателя
+        component: text
+
+      - field: customer_phone
+        label: Телефон покупателя
+        component: text
+
       - field: status_id
         label: Статус
         component: OrderStatusReferenceInput
@@ -303,6 +346,18 @@ frontend:
 
       - field: customer_sale_place
         label: Точка
+        width: 12rem
+
+      - field: cash_payed
+        label: Наличный расчет
+        width: 9rem
+
+      - field: customer_name
+        label: Имя покупателя
+        width: 12rem
+
+      - field: customer_phone
+        label: Телефон покупателя
         width: 12rem
 
       - field: customer_user

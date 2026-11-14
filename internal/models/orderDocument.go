@@ -12,10 +12,13 @@ type OrderDocument struct {
 	Ref1C               *Ref1c               `json:"ref_1c"`
 	ShipmentRef1C       *Ref1c               `json:"shipment_ref_1c"`
 	CustomerID          int                  `json:"customer_id"`
-	CustomerSalePlaceID int                  `json:"customer_sale_place_id"`
+	CustomerSalePlaceID *int                 `json:"customer_sale_place_id"`
 	CustomerUserID      *int                 `json:"customer_user_id"`
 	StatusID            *int                 `json:"status_id"`
 	CommentCustomer     *string              `json:"comment_customer"`
+	CashPayed           bool                 `json:"cash_payed"`
+	CustomerName        *string              `json:"customer_name"`
+	CustomerPhone       *string              `json:"customer_phone"`
 	CommentAdmin        *string              `json:"comment_admin"`
 	Items               []*OrderDocumentItem `json:"items"`
 }
@@ -44,13 +47,16 @@ type OrderDetail struct {
 	ShipmentRef1C       *Ref1c             `json:"shipment_ref_1c"`
 	CustomerID          int                `json:"customer_id"`
 	Customer            *Ref               `json:"customer"`
-	CustomerSalePlaceID int                `json:"customer_sale_place_id"`
+	CustomerSalePlaceID *int               `json:"customer_sale_place_id"`
 	CustomerSalePlace   *Ref               `json:"customer_sale_place"`
 	CustomerUserID      *int               `json:"customer_user_id"`
 	CustomerUser        *Ref               `json:"customer_user"`
 	StatusID            *int               `json:"status_id"`
 	Status              *Ref               `json:"status"`
 	CommentCustomer     *string            `json:"comment_customer"`
+	CashPayed           bool               `json:"cash_payed"`
+	CustomerName        *string            `json:"customer_name"`
+	CustomerPhone       *string            `json:"customer_phone"`
 	CommentAdmin        *string            `json:"comment_admin"`
 	Items               []*OrderDetailItem `json:"items"`
 }

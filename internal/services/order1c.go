@@ -124,12 +124,14 @@ func syncOrder1CAfterCorrection(ctx context.Context, tx ds.Querier, orderID int,
 
 func order1CParams(ctx context.Context, tx ds.Querier, orderID int, orderVersion int64) (integration.CreateOrderParams, error) {
 	var customerRef *string
+	var cashPayed bool
+	var customerName, customerPhone *string
 	if err := tx.QueryRow(ctx, `
-		SELECT customer.ref_1c->>'id'
+		SELECT customer.ref_1c->>'id', orders.cash_payed, orders.customer_name, orders.customer_phone
 		FROM public.orders orders
 		JOIN public.customers customer ON customer.id = orders.customer_id
 		WHERE orders.id = $1
-	`, orderID).Scan(&customerRef); err != nil {
+	`, orderID).Scan(&customerRef, &cashPayed, &customerName, &customerPhone); err != nil {
 		if errors.Is(err, ds.ErrNoRows) {
 			return integration.CreateOrderParams{}, webapp.NotFound("order not found", map[string]any{"id": orderID})
 		}
@@ -143,7 +145,11 @@ func order1CParams(ctx context.Context, tx ds.Querier, orderID int, orderVersion
 	if err != nil {
 		return integration.CreateOrderParams{}, err
 	}
-	return integration.CreateOrderParams{OrderID: orderID, OrderVersion: orderVersion, CustomerID: strings.TrimSpace(*customerRef), Products: products}, nil
+	return integration.CreateOrderParams{
+		OrderID: orderID, OrderVersion: orderVersion, CustomerID: strings.TrimSpace(*customerRef),
+		CashPayed: cashPayed, CustomerName: trimOptionalString(customerName), CustomerPhone: trimOptionalString(customerPhone),
+		Products: products,
+	}, nil
 }
 
 func clearOrder1CPrices(ctx context.Context, tx ds.Querier, orderID int) error {
@@ -456,19 +462,24 @@ func order1CStoredItemsMatch(
 	params integration.CreateOrderParams,
 ) (bool, error) {
 	var customerRef *string
+	var cashPayed bool
+	var customerName, customerPhone *string
 	if err := tx.QueryRow(ctx, `
-		SELECT customer.ref_1c->>'id'
+		SELECT customer.ref_1c->>'id', orders.cash_payed, orders.customer_name, orders.customer_phone
 		FROM public.orders orders
 		JOIN public.customers customer ON customer.id = orders.customer_id
 		WHERE orders.id = $1
 		FOR SHARE OF customer
-	`, orderID).Scan(&customerRef); err != nil {
+	`, orderID).Scan(&customerRef, &cashPayed, &customerName, &customerPhone); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
 		}
 		return false, err
 	}
 	if customerRef == nil || strings.TrimSpace(*customerRef) != params.CustomerID {
+		return false, nil
+	}
+	if !order1CContactsMatch(params, cashPayed, customerName, customerPhone) {
 		return false, nil
 	}
 	expected := make(map[int]integration.CreateOrderProduct, len(params.Products))
@@ -506,6 +517,18 @@ func order1CStoredItemsMatch(
 		return false, err
 	}
 	return matches && count == len(params.Products), nil
+}
+
+func order1CContactsMatch(params integration.CreateOrderParams, cashPayed bool, customerName, customerPhone *string) bool {
+	contactValue := func(value *string) string {
+		if value == nil {
+			return ""
+		}
+		return strings.TrimSpace(*value)
+	}
+	return params.CashPayed == cashPayed &&
+		contactValue(params.CustomerName) == contactValue(customerName) &&
+		contactValue(params.CustomerPhone) == contactValue(customerPhone)
 }
 
 func OrderSyncJobVersion(metadata json.RawMessage) (int, int64, error) {

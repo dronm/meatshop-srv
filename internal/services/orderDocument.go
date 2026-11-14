@@ -26,8 +26,10 @@ func validateOrderDocument(document *models.OrderDocument, create bool, pathID i
 	if document.CustomerID <= 0 {
 		return webapp.BadRequest("order customer_id should be positive", nil)
 	}
-	if document.CustomerSalePlaceID <= 0 {
-		return webapp.BadRequest("order customer_sale_place_id should be positive", nil)
+	if document.CashPayed {
+		document.CustomerSalePlaceID = nil
+	} else if document.CustomerSalePlaceID == nil || *document.CustomerSalePlaceID <= 0 {
+		return webapp.BadRequest("order customer_sale_place_id should be positive when cash_payed is false", nil)
 	}
 	if document.CustomerUserID != nil && *document.CustomerUserID <= 0 {
 		return webapp.BadRequest("order customer_user_id should be positive", nil)
@@ -39,6 +41,8 @@ func validateOrderDocument(document *models.OrderDocument, create bool, pathID i
 	document.Number1C = trimOptionalString(document.Number1C)
 	document.CommentCustomer = trimOptionalString(document.CommentCustomer)
 	document.CommentAdmin = trimOptionalString(document.CommentAdmin)
+	document.CustomerName = trimOptionalString(document.CustomerName)
+	document.CustomerPhone = trimOptionalString(document.CustomerPhone)
 	document.Ref1C = normalizeOrderRef1C(document.Ref1C)
 	document.ShipmentRef1C = normalizeOrderRef1C(document.ShipmentRef1C)
 
@@ -166,6 +170,9 @@ func fetchOrderDetail(
 			order_statuses_ref(order_status) AS status,
 			orders.comment_customer,
 			orders.comment_admin,
+			orders.cash_payed,
+			orders.customer_name,
+			orders.customer_phone,
 			item.id,
 			item.line_num,
 			item.product_id,
@@ -185,7 +192,7 @@ func fetchOrderDetail(
 		FROM public.orders AS orders
 		JOIN public.customers AS customer
 			ON customer.id = orders.customer_id
-		JOIN public.customer_sale_places AS sale_place
+		LEFT JOIN public.customer_sale_places AS sale_place
 			ON sale_place.id = orders.customer_sale_place_id
 		LEFT JOIN public.max_users AS customer_user
 			ON customer_user.id = orders.customer_user_id
@@ -207,7 +214,10 @@ func fetchOrderDetail(
 
 	var detail *models.OrderDetail
 	for rows.Next() {
-		var documentID, customerID, customerSalePlaceID int
+		var documentID, customerID int
+		var customerSalePlaceID *int
+		var cashPayed bool
+		var customerName, customerPhone *string
 		var version int64
 		var forDate time.Time
 		var number1C, commentCustomer, commentAdmin *string
@@ -237,6 +247,9 @@ func fetchOrderDetail(
 			&status,
 			&commentCustomer,
 			&commentAdmin,
+			&cashPayed,
+			&customerName,
+			&customerPhone,
 			&itemID,
 			&lineNum,
 			&productID,
@@ -275,6 +288,9 @@ func fetchOrderDetail(
 				Status:              status,
 				CommentCustomer:     commentCustomer,
 				CommentAdmin:        commentAdmin,
+				CashPayed:           cashPayed,
+				CustomerName:        customerName,
+				CustomerPhone:       customerPhone,
 				Items:               make([]*models.OrderDetailItem, 0),
 			}
 		}

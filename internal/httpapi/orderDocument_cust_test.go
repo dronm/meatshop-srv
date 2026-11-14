@@ -180,6 +180,31 @@ func TestOrderDocumentBinder(t *testing.T) {
 	if got := document.ForDate.Format(time.RFC3339); got != "2026-08-25T00:00:00Z" {
 		t.Fatalf("order date = %s", got)
 	}
+	if document.CashPayed || document.CustomerName != nil || document.CustomerPhone != nil {
+		t.Fatalf("omitted cash fields did not keep their defaults: %#v", document)
+	}
+}
+
+func TestOrderDocumentBinderAcceptsCashContactWithoutSalePlace(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/api/order", strings.NewReader(`{
+		"for_date":"2026-11-14T00:00:00Z",
+		"customer_id":10,
+		"cash_payed":true,
+		"customer_sale_place_id":null,
+		"customer_name":"Иван Иванов",
+		"customer_phone":"+79001234567",
+		"items":[{"product_id":30,"measure_unit_id":40,"quant_required":2,"quant":2}]
+	}`))
+	bound, err := orderDocumentJSONBinder()(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := bound.(*models.OrderDocument)
+	if !document.CashPayed || document.CustomerSalePlaceID != nil || document.CustomerID != 10 ||
+		document.CustomerName == nil || *document.CustomerName != "Иван Иванов" ||
+		document.CustomerPhone == nil || *document.CustomerPhone != "+79001234567" {
+		t.Fatalf("cash order binder result = %#v", document)
+	}
 }
 
 func TestOrderDocumentUpdateBinderUsesPathID(t *testing.T) {

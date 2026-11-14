@@ -13,9 +13,12 @@ import (
 
 type correctionQuery struct {
 	ds.Querier
-	requested bool
-	queued    bool
-	metadata  []byte
+	requested                   bool
+	queued                      bool
+	metadata                    []byte
+	params                      []byte
+	cashPayed                   bool
+	customerName, customerPhone *string
 }
 
 type correctionRow func(...any) error
@@ -30,10 +33,14 @@ func (q *correctionQuery) QueryRow(_ context.Context, sql string, args ...any) d
 		case strings.Contains(sql, "SELECT customer.ref_1c"):
 			ref := "customer-1c"
 			*dest[0].(**string) = &ref
+			*dest[1].(*bool) = q.cashPayed
+			*dest[2].(**string) = q.customerName
+			*dest[3].(**string) = q.customerPhone
 		case strings.Contains(sql, "array_agg(id)"):
 			*dest[0].(*[]int64) = []int64{77}
 		case strings.Contains(sql, "INSERT INTO integration_1c.jobs"):
 			q.queued = true
+			q.params = args[1].([]byte)
 			q.metadata = args[3].([]byte)
 			*dest[0].(*int64) = 88
 			*dest[1].(*string) = "queued"
@@ -42,6 +49,38 @@ func (q *correctionQuery) QueryRow(_ context.Context, sql string, args ...any) d
 		}
 		return nil
 	})
+}
+
+func TestOrderCorrectionSnapshotsOptionalCustomerContacts(t *testing.T) {
+	name, phone := "  Разовый покупатель  ", "  +7 (912) 123-45-67  "
+	q := &correctionQuery{requested: true, cashPayed: true, customerName: &name, customerPhone: &phone}
+	if err := syncOrder1CAfterCorrection(context.Background(), q, 101, 3); err != nil {
+		t.Fatal(err)
+	}
+	var params integration.CreateOrderParams
+	if err := json.Unmarshal(q.params, &params); err != nil {
+		t.Fatal(err)
+	}
+	if !params.CashPayed || params.CustomerName == nil || *params.CustomerName != "Разовый покупатель" ||
+		params.CustomerPhone == nil || *params.CustomerPhone != "+7 (912) 123-45-67" {
+		t.Fatalf("contacts missing from queued correction: %s", q.params)
+	}
+	if params.CustomerID != "customer-1c" || params.OrderVersion != 3 {
+		t.Fatalf("existing counterparty/version changed: %s", q.params)
+	}
+	blank := " \t "
+	q.customerName, q.customerPhone = &blank, nil
+	if err := syncOrder1CAfterCorrection(context.Background(), q, 101, 4); err != nil {
+		t.Fatal(err)
+	}
+	// Decode a fresh value: omitted JSON fields must not inherit a previous decode.
+	var empty integration.CreateOrderParams
+	if err := json.Unmarshal(q.params, &empty); err != nil {
+		t.Fatal(err)
+	}
+	if empty.CustomerName != nil || empty.CustomerPhone != nil {
+		t.Fatalf("empty contacts should remain optional: %s", q.params)
+	}
 }
 
 type correctionRows struct{ read bool }
@@ -130,6 +169,28 @@ func TestCreateOrdersCorrelationUsesSnapshotsAndIgnoresSelectionOrder(t *testing
 	b.Products[0].Quant++
 	if first == createOrders1CCorrelationID(integration.CreateOrdersParams{Orders: []integration.CreateOrderParams{a, b}}) {
 		t.Fatal("changed item data reused the old correlation ID")
+	}
+}
+
+func TestCreateOrdersCorrelationIncludesCustomerContacts(t *testing.T) {
+	base := batchOrderFixture(101, 201)
+	first := createOrders1CCorrelationID(integration.CreateOrdersParams{Orders: []integration.CreateOrderParams{base}})
+	name, phone := "Иван", "+79121234567"
+	for _, test := range []struct {
+		name   string
+		change func(*integration.CreateOrderParams)
+	}{
+		{"cash flag", func(order *integration.CreateOrderParams) { order.CashPayed = true }},
+		{"name", func(order *integration.CreateOrderParams) { order.CustomerName = &name }},
+		{"phone", func(order *integration.CreateOrderParams) { order.CustomerPhone = &phone }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			changed := base
+			test.change(&changed)
+			if first == createOrders1CCorrelationID(integration.CreateOrdersParams{Orders: []integration.CreateOrderParams{changed}}) {
+				t.Fatal("changed order contact snapshot reused the original batch correlation")
+			}
+		})
 	}
 }
 

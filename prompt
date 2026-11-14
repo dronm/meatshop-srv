@@ -42,3 +42,44 @@ First, I want you to make a plan of how this could be implemented.
 Second, I want you to estimate in hours how much time it will take to implement this change
 to a project, including OSRM, Nominatim installations. Just calculate how many hours it will
 take for a qualified engineer to implement such a system.
+
+
+*************************************
+I need one more feature to the project:
+I need a button in order lines collection: "Pass to production" - "Передать в производство".
+So, a user selects orders (one line is enough), pressed this button and a new
+document opens up 'Передача в производство', this should contain date, user in the header.
+Maybe I have forgotten something else? It also has a collection with selected orders.
+When a user pressed "save" - the order statuses change to 'Готовим' and 
+a new message is sent to a common MAX chat (new its id as a constant).
+This is a message format:
+Заявка на DD.MM.YY
+CustomerName1 --CustomerSalePlace1
+OrderItem1 --Quant1
+OrderItem2 --Quant2
+_________________________________________________________________
+CustomerName2 --CustomerSalePlace2
+OrderItem1 --Quant1
+OrderItem2 --Quant2
+
+And another message with totals:
+Общее:
+TotalItem1Name - TotalItem1Quant
+TotalItem2Name - TotalItem2Quant
+Total weight: kg.
+
+TotalItem3Name - TotalItem3Quant
+TotalItem4Name - TotalItem4Quant
+Total count: кор.
+
+So, first in this total message go items with measure_unit 'кг',
+then with 'кор'.
+
+And I need a print form for this document (html?)
+Заявка на 14.11.26											| Маркировка |	Комментарий клиента | 	Комментарий менеджера |
+ИП Курдян Елена Врежевна --Хот донер Льва Толстого	
+Филе цыпленка бройлера с кожей в маринаде охлажденное --50кг |	Нет		| Только из грудки		| Привезти до 14:00
+Яйцо Куриное пищевое С1 --2кор								|  Нет      |
+ИП Курдян Елена Врежевна --Хот донер Тимуровцев				| Да		|
+Филе цыпленка бройлера с кожей в маринаде охлажденное --20кг |	Да		| Фасовка по 5кг
+

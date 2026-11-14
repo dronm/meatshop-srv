@@ -51,9 +51,12 @@ func (s *OrderService) Create(
 				customer_user_id,
 				status_id,
 				comment_customer,
-				comment_admin
+				comment_admin,
+				cash_payed,
+				customer_name,
+				customer_phone
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 			RETURNING id, version
 		`,
 			document.ForDate,
@@ -66,6 +69,9 @@ func (s *OrderService) Create(
 			document.StatusID,
 			document.CommentCustomer,
 			document.CommentAdmin,
+			document.CashPayed,
+			document.CustomerName,
+			document.CustomerPhone,
 		).Scan(&document.ID, &document.Version); err != nil {
 			return err
 		}
@@ -176,6 +182,9 @@ func (s *OrderService) Update(
 				status_id = $9,
 				comment_customer = $10,
 				comment_admin = $11,
+				cash_payed = $12,
+				customer_name = $13,
+				customer_phone = $14,
 				version = version + 1
 			WHERE id = $1
 			RETURNING version
@@ -191,6 +200,9 @@ func (s *OrderService) Update(
 			document.StatusID,
 			document.CommentCustomer,
 			document.CommentAdmin,
+			document.CashPayed,
+			document.CustomerName,
+			document.CustomerPhone,
 		).Scan(&document.Version); err != nil {
 			return err
 		}

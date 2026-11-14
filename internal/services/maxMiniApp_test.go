@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,8 +11,47 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dronm/ds/v4"
 	"github.com/dronm/meatshop/internal/models"
 )
+
+type maxCashOrderDetailQuerier struct {
+	ds.Querier
+}
+
+func (maxCashOrderDetailQuerier) Query(context.Context, string, ...any) (ds.Rows, error) {
+	return &orderStatusTestRows{scan: func(dest ...any) error {
+		*dest[0].(*int) = 101
+		*dest[1].(*int64) = 2
+		*dest[2].(*time.Time) = time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+		*dest[5].(*string) = orderStatusProcessing
+		*dest[6].(*string) = "В обработке"
+		*dest[7].(*int) = 10
+		*dest[8].(*string) = "Заказчик"
+		*dest[10].(*bool) = true
+		*dest[11].(**string) = stringPointer("Иван Иванов")
+		*dest[12].(**string) = stringPointer("+79001234567")
+		return nil
+	}}, nil
+}
+
+func TestFetchMaxCashOrderWithoutSalePlaceIsReadOnly(t *testing.T) {
+	detail, err := fetchMaxOrderDetail(context.Background(), maxCashOrderDetailQuerier{}, 101, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !detail.CashPayed || detail.CanChange || detail.CustomerSalePlace != nil {
+		t.Fatalf("MAX cash order = %#v", detail)
+	}
+	if detail.CustomerName == nil || *detail.CustomerName != "Иван Иванов" ||
+		detail.CustomerPhone == nil || *detail.CustomerPhone != "+79001234567" {
+		t.Fatalf("MAX cash order contact = %#v", detail)
+	}
+	data := orderNotificationDataFromMaxDetail(detail, false)
+	if data.SalePlaceName != "" || data.CustomerName != "Заказчик" {
+		t.Fatalf("notification data for missing sale place = %#v", data)
+	}
+}
 
 func TestValidateMaxInitData(t *testing.T) {
 	const token = "test-bot-token"
