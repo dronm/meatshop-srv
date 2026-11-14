@@ -198,6 +198,7 @@ func run() error {
 		AppContext:      appCtx,
 		SessionResolver: sessionResolver,
 		EventBus:        eventServer,
+		IsMethodAllowed: customerMessageWSChecker(permChecker),
 		CheckOrigin: func(origin string) bool {
 			return true
 		},
@@ -208,9 +209,11 @@ func run() error {
 
 	webapp.MustRegisterService(
 		"Event",
-		&events.Service{},
+		&services.EventService{},
 		func(ctx webapp.ServiceContext) any {
-			return events.NewService(ctx, wsServer)
+			return &services.EventService{
+				Service: *events.NewService(ctx, wsServer), PermissionChecker: permChecker,
+			}
 		},
 		webapp.WithCRUDNotifications(),
 	)

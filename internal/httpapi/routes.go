@@ -24,6 +24,7 @@ func BuildRoutes(dependencies ...Dependencies) []webapp.Route {
 	)
 
 	applicationRouteRoutes(&api)
+	customerMessageActionRoutes(&api)
 
 	registerGeneratedRoutes(&api)
 	customerUserRoutes(&api)

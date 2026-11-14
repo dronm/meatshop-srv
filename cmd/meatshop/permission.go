@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"strings"
 
 	"github.com/dronm/meatshop/internal/models"
 	"github.com/dronm/meatshop/internal/services"
+	"github.com/dronm/session"
 	"github.com/dronm/webapp"
+	"github.com/dronm/webapp/ws"
 )
 
 func NewPermissionChecker(permissionService *services.PermissionService) webapp.PermissionChecker {
@@ -36,5 +40,27 @@ func NewPermissionChecker(permissionService *services.PermissionService) webapp.
 		}
 
 		return nil
+	}
+}
+
+// The WebSocket bridge also exposes service methods directly. Apply the same
+// inbox permissions as HTTP without altering existing services' behavior.
+func customerMessageWSChecker(check webapp.PermissionChecker) ws.PermissionChecker {
+	return func(sess session.Session, method string) error {
+		if !strings.HasPrefix(method, "CustomerMessage.") {
+			return nil
+		}
+		permissions := map[string]string{
+			"CustomerMessage.List":        "customerMessage.list",
+			"CustomerMessage.Detail":      "customerMessage.detail",
+			"CustomerMessage.UnreadCount": "customerMessage.list",
+			"CustomerMessage.MarkRead":    "customerMessage.markRead",
+		}
+		permission, ok := permissions[method]
+		if !ok || check == nil {
+			return webapp.Forbidden("Customer message method is not allowed", nil)
+		}
+		request := (&http.Request{}).WithContext(webapp.ContextWithSession(context.Background(), sess))
+		return check(request, permission)
 	}
 }

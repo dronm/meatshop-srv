@@ -23,6 +23,8 @@ type Order struct {
 	Ref1C *Ref1c `json:"ref_1c"`
 	// Reference to 1c shipment object.
 	ShipmentRef1C *Ref1c `json:"shipment_ref_1c"`
+	// Shipment document number returned by 1C.
+	ShipmentNumber1C *string `json:"shipment_number_1c" srvCalc:"true"`
 	// Customer reference
 	CustomerID int `json:"customer_id" required:"true"`
 	// Customer sale place reference

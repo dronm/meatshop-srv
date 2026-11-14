@@ -9,6 +9,10 @@ It has two responsibilities:
 
 On `bot_started`, the webhook transaction also upserts `public.max_users` and queues the hardcoded welcome message with an `open_app` button.
 
+Migration `000074_customer_messages` also extracts incoming customer text into a
+durable inbox, with per-admin unread state and WebSocket events. See
+[Customer messages](customer-messages.md) for storage, API and frontend integration.
+
 ## Configuration
 
 `config.json` uses the `max` section:

@@ -1,0 +1,174 @@
+name: CustomerMessage
+comment: CustomerMessage is a durable incoming customer text message from MAX.
+humanName: customer message
+humanNamePlural: customer messages
+
+table:
+  schema: public
+  name: customer_messages
+
+route: /customer-messages
+permissionPrefix: customerMessage
+serviceName: CustomerMessage
+sessionRequired: true
+crudNotifications: false
+
+keys:
+  - name: id
+    pathName: id
+    type: bigint
+
+fields:
+  - name: id
+    type: bigint
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+  - name: max_in_message_id
+    type: bigint
+    nullable: true
+    references:
+      schema: public
+      table: max_in_messages
+      column: id
+      onDelete: SET NULL
+  - name: max_message_id
+    type: text
+    required: true
+  - name: max_user_id
+    type: bigint
+    required: true
+    comment: External MAX sender ID, retained even before registration.
+  - name: max_chat_id
+    type: bigint
+    nullable: true
+  - name: customer_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: customers
+      column: id
+      onDelete: SET NULL
+  - name: sender_name
+    type: text
+    required: true
+  - name: text
+    type: text
+    required: true
+  - name: sent_at
+    type: timestamptz
+    required: true
+  - name: created_at
+    type: timestamptz
+    required: true
+    serverGenerated: true
+    default: "now()"
+
+# The SQL view supplies message/customer fields. The handwritten List method
+# joins read_at and is_read for the authenticated admin, using bound parameters.
+list:
+  model: CustomerMessageList
+  table:
+    schema: public
+    name: customer_messages_list
+  fields:
+    - name: id
+      type: bigint
+      primaryKey: true
+    - name: max_message_id
+      type: text
+    - name: max_user_id
+      type: bigint
+    - name: max_chat_id
+      type: bigint
+      nullable: true
+    - name: customer_id
+      type: int
+      nullable: true
+    - name: customer
+      type: json
+      goType: "*Ref"
+      nullable: true
+    - name: sender_name
+      type: text
+    - name: text
+      type: text
+    - name: sent_at
+      type: timestamptz
+    - name: created_at
+      type: timestamptz
+    - name: is_read
+      type: bool
+    - name: read_at
+      type: timestamptz
+      nullable: true
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+service:
+  manualMethods:
+    - list
+    - detail
+
+httpRoutes:
+  enabled: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр сообщений покупателей
+    detail: Просмотр сообщения покупателя
+
+applicationRoute:
+  enabled: true
+  name: customerMessages
+  path: /customer-messages
+  description: Сообщения покупателей
+  section: Покупатели
+  icon: pi pi-comments
+  menuAvailable: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: true
+  title: Сообщения покупателей
+  form:
+    enabled: false
+  list:
+    enabled: true
+    pageSize: 30
+    columns:
+      - field: created_at
+        label: Получено
+        width: 14rem
+      - field: customer
+        label: Покупатель
+        width: 24rem
+        sortable: false
+      - field: sender_name
+        label: Отправитель
+        width: 20rem
+      - field: text
+        label: Сообщение
+        width: 40rem
+      - field: is_read
+        label: Прочитано
+        width: 9rem
+  routes:
+    listName: customerMessages
+
+# Migration 000074 owns tables, extraction/backfill, events and permissions.
+migration:
+  enabled: false
+test:
+  enabled: false

@@ -1,0 +1,16 @@
+-- Emulate an insert notification.
+SELECT pg_notify(
+	'MeasureUnit.Create',
+	'{"result":{"id":0}}'
+);
+
+-- Emulate an update notification.
+SELECT pg_notify(
+	'MeasureUnit.Update',
+	'{"result":{"rows_affected":1}}'
+);
+
+SELECT pg_notify(
+	'Order.Update',
+	'{"result":{"rows_affected":1}}'
+);
