@@ -53,12 +53,12 @@ func loadCustomerOrderDatePolicy(
 		&afterCutoff,
 	); err != nil {
 		if errors.Is(err, ds.ErrNoRows) {
-			return nil, webapp.BadRequest("customer is invalid", map[string]any{
+			return nil, webapp.BadRequest("Некорректный заказчик.", map[string]any{
 				"code":        "order_customer_invalid",
 				"customer_id": customerID,
 			})
 		}
-		return nil, fmt.Errorf("load customer order date settings: %w", err)
+		return nil, fmt.Errorf("Не удалось загрузить настройки дат заказов для заказчика: %w", err)
 	}
 
 	today := normalizeOrderDate(businessToday)
@@ -91,7 +91,7 @@ func loadOrderCalendarOverrides(
 		ORDER BY calendar_date
 	`, from, through)
 	if err != nil {
-		return nil, fmt.Errorf("load order calendar: %w", err)
+		return nil, fmt.Errorf("Не удалось загрузить календарь заказов: %w", err)
 	}
 	defer rows.Close()
 
@@ -102,12 +102,12 @@ func loadOrderCalendarOverrides(
 			isHoliday bool
 		)
 		if err := rows.Scan(&date, &isHoliday); err != nil {
-			return nil, fmt.Errorf("scan order calendar day: %w", err)
+			return nil, fmt.Errorf("Не удалось прочитать день календаря заказов: %w", err)
 		}
 		overrides[normalizeOrderDate(date).Format(orderDateLayout)] = isHoliday
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read order calendar: %w", err)
+		return nil, fmt.Errorf("Не удалось прочитать календарь заказов: %w", err)
 	}
 	return overrides, nil
 }
@@ -147,19 +147,19 @@ func (p *orderDatePolicy) validate(forDate time.Time) error {
 
 	if p.earliest.After(p.latest) {
 		details["code"] = "order_for_date_unavailable"
-		return webapp.BadRequest("no order date is available in the allowed range", details)
+		return webapp.BadRequest("В допустимом диапазоне нет доступных дат для заказа.", details)
 	}
 	if date.Before(p.earliest) {
 		details["code"] = "order_for_date_too_early"
-		return webapp.BadRequest("order date is earlier than allowed", details)
+		return webapp.BadRequest("Дата заказа раньше минимально допустимой.", details)
 	}
 	if date.After(p.latest) {
 		details["code"] = "order_for_date_too_late"
-		return webapp.BadRequest("order date is later than allowed", details)
+		return webapp.BadRequest("Дата заказа позже максимально допустимой.", details)
 	}
 	if !p.allowHolidayOrders && p.isHoliday(date) {
 		details["code"] = "order_for_date_holiday"
-		return webapp.BadRequest("orders cannot be placed for a holiday", details)
+		return webapp.BadRequest("Нельзя оформить заказ на выходной или праздничный день.", details)
 	}
 	return nil
 }

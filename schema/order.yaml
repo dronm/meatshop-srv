@@ -257,6 +257,8 @@ frontend:
     editTitle: Заказ
     copyTitle: Копия заказа
     fields:
+      # Cash-mode visibility and cash_customer autofill are maintained in the
+      # custom OrderForm.vue; the current field schema has no conditional rules.
       - field: number_1c
         label: Номер 1с
         component: text
@@ -306,7 +308,8 @@ frontend:
 
       - field: customer_phone
         label: Телефон покупателя
-        component: text
+        component: OrderCustomerPhoneInput
+        componentImport: "@/components/order/OrderCustomerPhoneInput.vue"
 
       - field: status_id
         label: Статус
@@ -351,14 +354,6 @@ frontend:
       - field: cash_payed
         label: Наличный расчет
         width: 9rem
-
-      - field: customer_name
-        label: Имя покупателя
-        width: 12rem
-
-      - field: customer_phone
-        label: Телефон покупателя
-        width: 12rem
 
       - field: customer_user
         label: Пользователь

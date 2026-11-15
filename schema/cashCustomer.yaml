@@ -1,0 +1,69 @@
+# Application constant definition for constants-aware codegen.
+# This file belongs in schemaDir alongside the CRUD model definitions.
+# One file defines one constant. Shared constants API/page/permissions are
+# generated once for the catalogue; generated Go/TS/Vue filenames use .gen.
+kind: constant
+# name is the generated identifier; title maps to the stored metadata.name.
+name: CashCustomer
+code: cash_customer
+title: Покупатель за наличный расчёт
+description: >-
+  Покупатель для заказов за наличный расчёт. Не задан, пока покупатель
+  не выбран администратором.
+
+value:
+  # A semantic reference is stored as webapp/constants TypeJSON, in JSONB.
+  # Full wire value: {keys: {id: 42}, descr: "Покупатель"}; not a scalar ID.
+  type: reference
+  goType: "*models.Ref"
+  nullable: true
+  default: null
+  references:
+    # Resolve table/schema/key type from schema/customer.yaml.
+    model: Customer
+    keyField: id
+    descrFields: [name]
+    validateExists: true
+    # Enforce the JSON reference through a generated key column and SQL FK.
+    onDelete: RESTRICT
+    onUpdate: RESTRICT
+
+seed:
+  # The row must exist at startup; its value may still be JSON null.
+  required: true
+  # Seed through migrations only. Never reset an administrator's value.
+  onConflict: doNothing
+
+backend:
+  enabled: true
+  # Derive ConstantCashCustomerService with GetValue/SetValue from name.
+  typedAccessor: true
+
+sessionRequired: true
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+
+frontend:
+  scaffold: true
+  # Include in the shared /constants page. The page owns the read-only
+  # code/name/description/value_type columns; only value is editable.
+  editor:
+    component: reference
+    reference:
+      name: customerReference
+      import: "@/references/customerReferences"
+    # Bind the full reference object, preserving both keys and description.
+    valueMode: reference
+    # Unselected search text is invalid; an explicitly cleared value is null.
+    allowFreeText: false
+    showOpen: true
+    showSelect: true
+    showClear: true
+
+migration:
+  # Existing migrations 000078-000081 already own the catalogue, seed,
+  # admin permissions and reference FK. Adopt them instead of recreating them.
+  # Enable generation only after codegen can reconcile the existing objects.
+  enabled: false

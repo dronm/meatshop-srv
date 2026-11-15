@@ -1,0 +1,21 @@
+{
+	"version": 1,
+	"files": [
+		{
+			"path": "internal/appconstants/cashCustomer.gen.go",
+			"sha256": "bbd5f6235a89051cf092e0e5904206f5e7eeb895d2e3c86d5bdf6a520d89e15a"
+		},
+		{
+			"path": "internal/appconstants/constants.gen.go",
+			"sha256": "2f305af15087511de832845a62f7638543e9499d62c57f760cae6f157a8e1ecb"
+		},
+		{
+			"path": "internal/httpapi/constant.gen.go",
+			"sha256": "df3ebe22e555caefc9d3f3d9b5323c42a3e6eaf03b4e00faee92b6a981059bec"
+		},
+		{
+			"path": "internal/services/constant.gen.go",
+			"sha256": "3fde58dbee158d414653c24e7c4e434daa563d30ce9c0e074909e43adf6377d3"
+		}
+	]
+}

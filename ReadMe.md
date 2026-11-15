@@ -4,6 +4,7 @@ Meatshop is the Go/PostgreSQL backend for the ordering application. It provides 
 
 ## Documentation
 
+- [Application constants](docs/constants.md) — cash customer reference, migrations, administrator API and typed backend access.
 - [Order creation and synchronization with 1C](docs/order-1c-creation.md) — detailed trace from Order save through the queue/worker to `orders.ref_1c`.
 - [1C integration](docs/1c-integration.md) — general 1C integration, autocomplete and print-form API notes.
 - [Order document and product register](docs/order-document-register.md) — Order aggregate and register behavior.

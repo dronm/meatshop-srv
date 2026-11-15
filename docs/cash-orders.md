@@ -4,6 +4,15 @@ The order header has `cash_payed` (boolean, default `false`), `customer_name` an
 
 In the admin order form, enabling **Наличный расчет** shows **Имя покупателя** and **Телефон покупателя**, hides the sale-place selector, and clears the sale place. The backend also clears a supplied place for cash orders. Disabling cash mode shows an empty sale-place selector and requires a real place before saving. Contacts are kept on the order; copying an admin order preserves them for review.
 
+When an administrator explicitly enables cash mode, the form reads the current
+`cash_customer` constant and selects that catalogue customer. The customer stays
+editable. Opening an existing cash order preserves its saved customer. If the
+constant is unset or unavailable, the form explains the problem and preserves
+the current customer so the administrator can choose one manually.
+
+The order's `number_1c` input is hidden in cash mode without erasing its value.
+The optional buyer telephone input uses the mask `+7(922)-269-52-51`.
+
 Order and order-line collections expose all three fields. No fictitious sale place is created. Product register movements and balances support a missing sale-place dimension with null-aware uniqueness and cleanup.
 
 ## Installation
@@ -20,6 +29,11 @@ The flag does not register a payment or create a fiscal receipt. Buyer contacts 
 `schema/order.yaml` defines the persistent fields, sale-place nullability, database check, list projection, generated form metadata, and column labels. The changed generated Go/TypeScript files were regenerated from that definition. Continue using the project's normal `make codegen` workflow; do not patch generated output manually.
 
 The order aggregate, conditional validation, custom admin form, order-line projection, SQL views, and 1C mapping are maintained separately. YAML changes alone cannot replace those parts. Existing migrations remain immutable; migrations 76 and 77 apply the changes to existing databases.
+
+The `customer_phone` form field points to the reusable
+`OrderCustomerPhoneInput.vue` component in YAML, preserving the mask when a form
+is scaffolded. Cash-customer lookup and conditional field visibility remain in
+the custom order form; no unsupported conditional keys are added to the schema.
 
 Rollback is guarded: assign sale places to cash orders and clear nullable register movements through the normal application workflow before restoring the former mandatory dimensions. The down migrations fail instead of deleting orders or assigning placeholder places.
 

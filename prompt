@@ -46,13 +46,15 @@ take for a qualified engineer to implement such a system.
 
 *************************************
 I need one more feature to the project:
-I need a button in order lines collection: "Pass to production" - "Передать в производство".
+I need a button in order lines collection and in order collection: "Pass to production" - "Передать в производство".
 So, a user selects orders (one line is enough), pressed this button and a new
 document opens up 'Передача в производство', this should contain date, user in the header.
-Maybe I have forgotten something else? It also has a collection with selected orders.
-When a user pressed "save" - the order statuses change to 'Готовим' and 
-a new message is sent to a common MAX chat (new its id as a constant).
-This is a message format:
+Maybe I have forgotton something else for the head fields? 
+It also has a collection with selected orders. Orders with 'Готовим' status are skipped.
+When a user presses "save" - the order statuses change to 'Готовим' and 
+a new message is sent to a common MAX chat (this should be a constant. How can I send a
+message to MAX, by chat ID?).
+This is a message format for MAX chat:
 Заявка на DD.MM.YY
 CustomerName1 --CustomerSalePlace1
 OrderItem1 --Quant1

@@ -12,10 +12,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dronm/ds/v4/pgds"
+	"github.com/dronm/meatshop/internal/appconstants"
 	"github.com/dronm/meatshop/internal/config"
 	"github.com/dronm/meatshop/internal/maxbot"
+	"github.com/dronm/webapp/database"
 	weblogger "github.com/dronm/webapp/logger"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -40,14 +42,38 @@ func run() error {
 		return fmt.Errorf("max.bot_token is required")
 	}
 
-	pool, err := pgxpool.New(context.Background(), cfg.Database.Primary)
+	db, err := database.Open(cfg.Database, nil)
 	if err != nil {
-		return fmt.Errorf("open MAX database pool: %w", err)
+		return fmt.Errorf("open MAX database: %w", err)
 	}
-	defer pool.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Error("close MAX database", "error", err)
+		}
+	}()
+	provider, ok := db.(*pgds.Provider)
+	if !ok {
+		return fmt.Errorf("MAX database provider must be pgds")
+	}
+	pool, err := provider.PrimaryPool()
+	if err != nil {
+		return fmt.Errorf("MAX primary database pool: %w", err)
+	}
 	if err := pool.Ping(context.Background()); err != nil {
 		return fmt.Errorf("ping MAX database: %w", err)
 	}
+
+	projectConstants, err := appconstants.Open(context.Background(), db, cfg.Database.Primary)
+	if err != nil {
+		return fmt.Errorf("initialize MAX constants (apply database migrations first): %w", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := projectConstants.Close(ctx); err != nil {
+			slog.Error("close MAX constants", "error", err)
+		}
+	}()
 
 	client, err := maxbot.NewClient(cfg.MAX.BotToken)
 	if err != nil {

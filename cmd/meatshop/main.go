@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dronm/ds/v4/pgds"
+	"github.com/dronm/meatshop/internal/appconstants"
 	"github.com/dronm/meatshop/internal/config"
 	"github.com/dronm/meatshop/internal/httpapi"
 	"github.com/dronm/meatshop/internal/models"
@@ -81,6 +82,26 @@ func run() error {
 	db, err := database.Open(cfg.Database, nil)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Error("close database", "error", err)
+		}
+	}()
+
+	projectConstants, err := appconstants.Open(context.Background(), db, cfg.Database.Primary)
+	if err != nil {
+		return fmt.Errorf("initialize constants (apply database migrations first): %w", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := projectConstants.Close(ctx); err != nil {
+			slog.Error("close constants", "error", err)
+		}
+	}()
+	if err := services.RegisterConstantService(projectConstants.Manager); err != nil {
+		return fmt.Errorf("register constants service: %w", err)
 	}
 
 	permissionService := services.NewPermissionService(db)
@@ -198,7 +219,7 @@ func run() error {
 		AppContext:      appCtx,
 		SessionResolver: sessionResolver,
 		EventBus:        eventServer,
-		IsMethodAllowed: customerMessageWSChecker(permChecker),
+		IsMethodAllowed: constantWSChecker(permChecker, customerMessageWSChecker(permChecker)),
 		CheckOrigin: func(origin string) bool {
 			return true
 		},
