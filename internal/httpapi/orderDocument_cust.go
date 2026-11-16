@@ -59,6 +59,13 @@ func orderDocumentRoutes(api *webapp.Group, deps Dependencies) {
 		webapp.WithBinder(orderLineIDsJSONBinder()),
 	)
 	api.POST(
+		"/order/set-lines-weight-confirmed",
+		webapp.WithName("order.setLinesWeightConfirmed"),
+		webapp.WithPermission("order.update"),
+		webapp.WithService("Order", "SetLinesWeightConfirmed"),
+		webapp.WithBinder(orderLinesWeightConfirmationJSONBinder()),
+	)
+	api.POST(
 		"/order/print-1c",
 		webapp.WithName("order.print1c.batch"),
 		webapp.WithPermission("order.print1c"),
