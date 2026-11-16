@@ -53,6 +53,10 @@ func (s *OrderService) Create1C(ctx context.Context, id int) (models.Integration
 }
 
 func enqueueOrder1CSync(ctx context.Context, tx ds.Querier, orderID int, orderVersion int64) (models.Integration1CJobResponse, error) {
+	return enqueueOrder1CSyncWithInvalidation(ctx, tx, orderID, orderVersion, true)
+}
+
+func enqueueOrder1CSyncWithInvalidation(ctx context.Context, tx ds.Querier, orderID int, orderVersion int64, invalidateValues bool) (models.Integration1CJobResponse, error) {
 	if orderID <= 0 || orderVersion <= 0 {
 		return models.Integration1CJobResponse{}, webapp.BadRequest("order id and version are required for 1c sync", nil)
 	}
@@ -61,8 +65,10 @@ func enqueueOrder1CSync(ctx context.Context, tx ds.Querier, orderID int, orderVe
 	if err != nil {
 		return models.Integration1CJobResponse{}, err
 	}
-	if err := clearOrder1CPrices(ctx, tx, orderID); err != nil {
-		return models.Integration1CJobResponse{}, err
+	if invalidateValues {
+		if err := clearOrder1CPrices(ctx, tx, orderID); err != nil {
+			return models.Integration1CJobResponse{}, err
+		}
 	}
 	params, err := json.Marshal(orderParams)
 	if err != nil {
@@ -105,6 +111,30 @@ func enqueueOrder1CSync(ctx context.Context, tx ds.Querier, orderID int, orderVe
 // An unsent draft stays local. After the first explicit request, corrections
 // continue using the existing single-order synchronization automatically.
 func syncOrder1CAfterCorrection(ctx context.Context, tx ds.Querier, orderID int, version int64) error {
+	requested, err := order1CSyncRequested(ctx, tx, orderID)
+	if err != nil {
+		return err
+	}
+	if !requested {
+		return clearOrder1CPrices(ctx, tx, orderID)
+	}
+	_, err = enqueueOrder1CSync(ctx, tx, orderID, version)
+	return err
+}
+
+// A status change advances the concurrency version but does not change the
+// order contents. Keep valid prices/marking visible while syncing the new
+// version; production printing reads these values directly from order items.
+func syncOrder1CAfterStatusChange(ctx context.Context, tx ds.Querier, orderID int, version int64) error {
+	requested, err := order1CSyncRequested(ctx, tx, orderID)
+	if err != nil || !requested {
+		return err
+	}
+	_, err = enqueueOrder1CSyncWithInvalidation(ctx, tx, orderID, version, false)
+	return err
+}
+
+func order1CSyncRequested(ctx context.Context, tx ds.Querier, orderID int) (bool, error) {
 	var requested bool
 	if err := tx.QueryRow(ctx, `SELECT
 		NULLIF(btrim(o.ref_1c->>'id'), '') IS NOT NULL OR EXISTS (
@@ -113,13 +143,9 @@ func syncOrder1CAfterCorrection(ctx context.Context, tx ds.Querier, orderID int,
 				OR (j.command = 'create_orders' AND j.params->'orders' @> $3::jsonb)
 		) FROM public.orders AS o WHERE o.id = $1`, orderID, strconv.Itoa(orderID),
 		fmt.Sprintf(`[{"order_id":%d}]`, orderID)).Scan(&requested); err != nil {
-		return err
+		return false, err
 	}
-	if !requested {
-		return clearOrder1CPrices(ctx, tx, orderID)
-	}
-	_, err := enqueueOrder1CSync(ctx, tx, orderID, version)
-	return err
+	return requested, nil
 }
 
 func order1CParams(ctx context.Context, tx ds.Querier, orderID int, orderVersion int64) (integration.CreateOrderParams, error) {

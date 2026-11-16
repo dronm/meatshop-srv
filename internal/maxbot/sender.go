@@ -75,10 +75,10 @@ func (s *Sender) drain(ctx context.Context) error {
 		if err := s.waitRateLimit(ctx); err != nil {
 			return err
 		}
-		sendErr := s.client.SendMessage(ctx, message.MaxUserID, message.Message)
+		remoteMessageID, sendErr := s.client.SendToDestination(ctx, message.MaxUserID, message.MaxChatID, message.Message)
 		s.lastSend = time.Now()
 		if sendErr == nil {
-			if err := s.store.MarkSent(ctx, message.ID); err != nil {
+			if err := s.store.MarkSent(ctx, message.ID, remoteMessageID); err != nil {
 				return err
 			}
 			continue
@@ -91,6 +91,7 @@ func (s *Sender) drain(ctx context.Context) error {
 			slog.Error("MAX outgoing message permanently failed",
 				"id", message.ID,
 				"max_user_id", message.MaxUserID,
+				"max_chat_id", message.MaxChatID,
 				"attempt", message.AttemptCount,
 				"error", sendErr,
 			)
@@ -104,6 +105,7 @@ func (s *Sender) drain(ctx context.Context) error {
 		slog.Warn("MAX outgoing message scheduled for retry",
 			"id", message.ID,
 			"max_user_id", message.MaxUserID,
+			"max_chat_id", message.MaxChatID,
 			"attempt", message.AttemptCount,
 			"retry_in", delay,
 			"error", sendErr,

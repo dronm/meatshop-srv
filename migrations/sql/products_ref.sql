@@ -18,7 +18,7 @@ $BODY$
 			)
 	END;
 $BODY$
-  LANGUAGE sql VOLATILE
+  LANGUAGE sql STABLE
   COST 100;
 
 

@@ -11,7 +11,9 @@ table:
     - attempt_count >= 0
     - jsonb_typeof(message) = 'object'
     - jsonb_typeof(metadata) = 'object'
-    - status IN ('pending', 'sending', 'sent', 'failed')
+    - status IN ('pending', 'sending', 'sent', 'failed', 'superseded')
+    - (max_user_id IS NULL) <> (max_chat_id IS NULL)
+    - max_chat_id IS NULL OR max_chat_id <> 0
 
 route: /max-out-messages
 permissionPrefix: maxOutMessage
@@ -33,7 +35,7 @@ fields:
 
   - name: max_user_id
     type: bigint
-    required: true
+    nullable: true
     references:
       schema: public
       table: max_users
@@ -41,6 +43,31 @@ fields:
       onDelete: CASCADE
       onUpdate: CASCADE
     comment: MAX platform user ID.
+
+  - name: max_chat_id
+    type: bigint
+    nullable: true
+    comment: MAX group or channel ID; exactly one destination is required.
+
+  - name: remote_message_id
+    type: text
+    nullable: true
+    comment: Message identifier returned by MAX after delivery.
+
+  - name: delivery_key
+    type: text
+    nullable: true
+    comment: Unique application delivery key preventing duplicate queue inserts.
+
+  - name: sequence_key
+    type: text
+    nullable: true
+    comment: Messages with this key are delivered in insertion order.
+
+  - name: sequence_num
+    type: int
+    nullable: true
+    comment: Part number inside a document version.
 
   - name: message
     type: jsonb
@@ -57,7 +84,7 @@ fields:
     type: text
     required: true
     default: "'pending'"
-    comment: "Queue state: pending, sending, sent, or failed."
+    comment: "Queue state: pending, sending, sent, failed, or superseded."
 
   - name: attempt_count
     type: int
@@ -106,11 +133,21 @@ list:
 
     - name: max_user_id
       type: bigint
-      required: true
+      nullable: true
 
     - name: max_user
       type: json
       goType: "*Ref"
+      nullable: true
+
+    # The collection exposes exact IDs as text, avoiding browser precision loss.
+    - name: max_chat_id
+      type: text
+      nullable: true
+
+    - name: remote_message_id
+      type: text
+      nullable: true
 
     - name: status
       type: text
@@ -196,6 +233,10 @@ frontend:
         label: Пользователь MAX
         width: 24rem
         sortable: false
+
+      - field: max_chat_id
+        label: Чат MAX
+        width: 16rem
 
       - field: status
         label: Статус

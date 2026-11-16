@@ -78,6 +78,14 @@ func TestCashCustomerPostgresLifecycle(t *testing.T) {
 	migrate("000079_cash_customer_constant.up.sql")
 	migrate("000080_constant_permissions.up.sql")
 	migrate("000081_cash_customer_reference.up.sql")
+	// The application registry also requires the nullable production destination.
+	// Its full migration includes MAX queue changes, which this focused fixture
+	// intentionally does not install.
+	if _, err := conn.Exec(ctx, `INSERT INTO public.webapp_constants
+		(code, name, description, value_type, value)
+		VALUES ('production_max_chat_id', 'Чат MAX для производства', '', 'string', 'null'::jsonb)`); err != nil {
+		t.Fatal(err)
+	}
 	var adminPermissions, customerPermissions int
 	if err := conn.QueryRow(ctx,
 		"SELECT count(*) FILTER (WHERE role_id = 'admin'), count(*) FILTER (WHERE role_id = 'customer') FROM public.role_permissions",

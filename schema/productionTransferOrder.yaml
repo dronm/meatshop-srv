@@ -1,0 +1,104 @@
+name: ProductionTransferOrder
+comment: References from production handover documents to live orders.
+humanName: production transfer order
+humanNamePlural: production transfer orders
+table:
+  schema: public
+  name: production_transfer_orders
+  checks:
+    - line_num > 0
+route: /production-transfer-orders
+permissionPrefix: productionTransferOrder
+serviceName: ProductionTransferOrder
+sessionRequired: true
+crudNotifications: false
+keys:
+  - name: id
+    pathName: id
+    type: int
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+  - name: transfer_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: production_transfers
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+  - name: order_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: orders
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+  - name: line_num
+    type: int
+    required: true
+list:
+  model: ProductionTransferOrderList
+  table:
+    schema: public
+    name: production_transfer_orders_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+    - name: transfer_id
+      type: int
+    - name: order_id
+      type: int
+    - name: line_num
+      type: int
+    - name: order
+      type: json
+      goType: "*Ref"
+    - name: for_date
+      type: date
+    - name: number_1c
+      type: text
+      nullable: true
+    - name: customer
+      type: json
+      goType: "*Ref"
+    - name: customer_sale_place
+      type: json
+      goType: "*Ref"
+      nullable: true
+    - name: products
+      type: text
+crud:
+  create: false
+  list: true
+  detail: false
+  update: false
+  delete: false
+httpRoutes:
+  enabled: false
+permissions:
+  enabled: false
+frontend:
+  scaffold: false
+  title: Заказы в производстве
+  form:
+    enabled: false
+  list:
+    enabled: false
+migration:
+  enabled: true
+  indexes:
+    - name: production_transfer_orders_order_idx
+      columns: [order_id]
+      unique: true
+    - name: production_transfer_orders_transfer_idx
+      columns: [transfer_id, line_num]
+test:
+  enabled: false

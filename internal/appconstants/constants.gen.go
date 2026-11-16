@@ -13,8 +13,9 @@ import (
 
 // Project owns the single shared manager and typed accessors for this process.
 type Project struct {
-	Manager      *constants.Manager
-	CashCustomer *ConstantCashCustomerService
+	Manager             *constants.Manager
+	CashCustomer        *ConstantCashCustomerService
+	ProductionMaxChatID *ConstantProductionMaxChatIDService
 }
 
 // NewRegistry registers all definitions before the manager takes its snapshot.
@@ -46,6 +47,9 @@ func newRegistry(
 ) (*constants.Registry, error) {
 	registry := constants.NewRegistry()
 	if err := registerCashCustomer(registry, cashCustomerExists); err != nil {
+		return nil, err
+	}
+	if err := registerProductionMaxChatID(registry); err != nil {
 		return nil, err
 	}
 	return registry, nil
@@ -83,6 +87,13 @@ func Open(ctx context.Context, db ds.Provider, primaryDSN string) (*Project, err
 	}
 	project := &Project{Manager: manager}
 	project.CashCustomer, err = NewConstantCashCustomerService(manager)
+	if err != nil {
+		closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = manager.Close(closeCtx)
+		return nil, err
+	}
+	project.ProductionMaxChatID, err = NewConstantProductionMaxChatIDService(manager)
 	if err != nil {
 		closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

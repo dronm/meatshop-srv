@@ -54,6 +54,7 @@ type orderStatusTestQuerier struct {
 	customerUser  *int
 	notifications []string
 	maxMessages   []string
+	manualRecords []int
 }
 
 func (q *orderStatusTestQuerier) QueryRow(_ context.Context, query string, args ...any) ds.Row {
@@ -93,6 +94,10 @@ func (q *orderStatusTestQuerier) QueryRow(_ context.Context, query string, args 
 }
 
 func (q *orderStatusTestQuerier) Exec(_ context.Context, query string, args ...any) (ds.ExecResult, error) {
+	if strings.Contains(query, "INSERT INTO public.order_status_assignments") {
+		q.manualRecords = append(q.manualRecords, args[0].(int))
+		return productRegisterFakeExecResult{}, nil
+	}
 	if strings.Contains(query, "pg_advisory_xact_lock") {
 		q.locks = append(q.locks, args[1].(int))
 		return productRegisterFakeExecResult{}, nil
@@ -178,6 +183,9 @@ func TestChangeOrderStatusesSkipsUnchangedAndSynchronizesChangedOrders(t *testin
 	if changed != 2 || !reflect.DeepEqual(q.updated, []int{101, 103}) || !reflect.DeepEqual(q.synced, q.updated) {
 		t.Fatalf("changed = %d, updated = %v, synchronized = %v", changed, q.updated, q.synced)
 	}
+	if !reflect.DeepEqual(q.manualRecords, []int{102}) {
+		t.Fatalf("same-value manual assignments = %v", q.manualRecords)
+	}
 	if !reflect.DeepEqual(q.notifications, []string{`{"result":{"rows_affected":2}}`}) {
 		t.Fatalf("batch event payloads = %v", q.notifications)
 	}
@@ -203,6 +211,9 @@ func TestChangeOrderStatusesNotifiesMAXOnceAndSkipsNoOp(t *testing.T) {
 	}
 	if changed != 0 || len(q.updated) != 0 || len(q.synced) != 0 || len(q.notifications) != 0 || len(q.maxMessages) != 0 {
 		t.Fatal("same-status batch updated the order or sent another notification")
+	}
+	if !reflect.DeepEqual(q.manualRecords, []int{101}) {
+		t.Fatalf("same-value manual status ownership was not recorded: %v", q.manualRecords)
 	}
 }
 

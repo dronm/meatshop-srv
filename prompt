@@ -47,20 +47,26 @@ take for a qualified engineer to implement such a system.
 *************************************
 I need one more feature to the project:
 I need a button in order lines collection and in order collection: "Pass to production" - "Передать в производство".
-So, a user selects orders (one line is enough), pressed this button and a new
-document opens up 'Передача в производство', this should contain date, user in the header.
-Maybe I have forgotton something else for the head fields? 
-It also has a collection with selected orders. Orders with 'Готовим' status are skipped.
+The same action should be in collection context menu. 
+So, a user selects orders (one line is enough), presses this button and a new
+document opens up 'Передача в производство', this should contain a date flag in the header.
+Maybe I have forgotton something else for the head fields? User and modified fields
+I have in audit log, so just need to add new tables in audit log.
+It also should have a collection with selected orders. Orders with 'Готовим' status are skipped.
 When a user presses "save" - the order statuses change to 'Готовим' and 
 a new message is sent to a common MAX chat (this should be a constant. How can I send a
-message to MAX, by chat ID?).
+message to MAX, by chat ID? How should I obtain a max channel ID).
 This is a message format for MAX chat:
 Заявка на DD.MM.YY
 CustomerName1 --CustomerSalePlace1
 OrderItem1 --Quant1
 OrderItem2 --Quant2
 _________________________________________________________________
-CustomerName2 --CustomerSalePlace2
+CustomerName1 --CustomerSalePlace2
+OrderItem1 --Quant1
+OrderItem2 --Quant2
+_________________________________________________________________
+CustomerName2 --CustomerSalePlace1
 OrderItem1 --Quant1
 OrderItem2 --Quant2
 
@@ -75,7 +81,7 @@ TotalItem4Name - TotalItem4Quant
 Total count: кор.
 
 So, first in this total message go items with measure_unit 'кг',
-then with 'кор'.
+then with 'кор'. Or better items should be grouped by measure_unit.
 
 And I need a print form for this document (html?)
 Заявка на 14.11.26											| Маркировка |	Комментарий клиента | 	Комментарий менеджера |
@@ -85,3 +91,37 @@ And I need a print form for this document (html?)
 ИП Курдян Елена Врежевна --Хот донер Тимуровцев				| Да		|
 Филе цыпленка бройлера с кожей в маринаде охлажденное --20кг |	Да		| Фасовка по 5кг
 
+I need a new collection for this document, so it would be possible to open this
+document and print it again.
+In the collection there should be these columns:
+data	| product totals (grouped by measure_unit) | comman separated customers with sales places in paranthesis
+
+The order lines collection should also have a button (and action in menu) "Производство" for
+opening a production form (if this order is already in production).
+
+All new tables should be created with yaml files where possible.
+First make a detailed plan of what you are going to implement.
+
+**********
+Let us make some amendments. I will only mention the points I do not agree with
+or want to change. If not mentioned, then I fully support your points.
+
+2. I think you should keep it simple: just one table with production_transfer_orders
+Better make projections for collection and edit page.
+This is a collection I need in PassToProduction document:
+OrderReference,number and for_date as description | customer | sale_place | comma separated products with quantities and measure units.
+So, all can be retrieved from real orders, no snapshot is needed.
+This collection should be my standard collection. Lines (orders) can be removed or added,
+there should be a reference field to orders with autocomplete by number or with open list action.
+
+4. Add the production form.
+So, I have described how this form should look like in the previous paragraph.
+
+8. Add an HTML print form.
+For every order there should be a line with customer name and a sale place name
+with comments (if any).
+then go the order items with use_marking value
+Marking in the print form should come from an order.items.use_marking,
+comments should come from real order header.
+
+So, please, analyse once again. Is everything clear now?

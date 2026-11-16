@@ -33,7 +33,8 @@ type Update struct {
 
 type OutMessage struct {
 	ID           int64
-	MaxUserID    int64
+	MaxUserID    *int64
+	MaxChatID    *int64
 	Message      json.RawMessage
 	AttemptCount int
 }

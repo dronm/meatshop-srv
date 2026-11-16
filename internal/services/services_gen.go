@@ -13,5 +13,8 @@ func RegisterGeneratedServices() {
 	RegisterOrderService()
 	RegisterOrderCalendarDayService()
 	RegisterOrderItemService()
+	RegisterOrderStatusAssignmentService()
 	RegisterProductService()
+	RegisterProductionTransferService()
+	RegisterProductionTransferOrderService()
 }

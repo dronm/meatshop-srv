@@ -13,5 +13,6 @@ func registerGeneratedRoutes(api *webapp.Group) {
 	maxUserRoutes(api)
 	measureUnitRoutes(api)
 	orderCalendarDayRoutes(api)
+	orderStatusAssignmentRoutes(api)
 	productRoutes(api)
 }

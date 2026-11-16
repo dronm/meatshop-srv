@@ -28,9 +28,10 @@ SELECT
 	o.shipment_number_1c,
 	o.cash_payed,
 	o.customer_name,
-	o.customer_phone
+	o.customer_phone,
+	link.transfer_id AS production_transfer_id
 FROM public.order_items AS items
-LEFT JOIN public.orders AS o ON o.id = items.order_id
+JOIN public.orders AS o ON o.id = items.order_id
 LEFT JOIN public.customers AS customer
 	ON customer.id = o.customer_id
 LEFT JOIN public.customer_sale_places AS sale_place
@@ -39,6 +40,8 @@ LEFT JOIN public.products AS p
 	ON p.id = items.product_id
 LEFT JOIN public.order_statuses AS order_status
 	ON order_status.id = o.status_id
+LEFT JOIN public.production_transfer_orders AS link
+	ON link.order_id = o.id
 WHERE items.quant > 0
 ORDER BY o.id DESC, items.line_num, items.id;
 

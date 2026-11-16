@@ -1,0 +1,37 @@
+kind: constant
+name: ProductionMaxChatID
+code: production_max_chat_id
+title: Чат MAX для производства
+description: >-
+  Идентификатор общего чата или канала MAX для заявок в производство.
+  Получите chat_id из события bot_added и укажите его полностью, включая знак.
+  Бот должен иметь права отправки сообщений в этом чате.
+
+# A string preserves every signed 64-bit chat ID in the browser editor.
+value:
+  type: string
+  nullable: true
+  default: null
+
+seed:
+  required: true
+  onConflict: doNothing
+
+backend:
+  enabled: true
+  typedAccessor: true
+
+sessionRequired: true
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+
+frontend:
+  scaffold: true
+  editor:
+    component: text
+
+# Migration 000087 owns the seed along with chat queue support.
+migration:
+  enabled: false

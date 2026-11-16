@@ -34,6 +34,7 @@ func BuildRoutes(dependencies ...Dependencies) []webapp.Route {
 	notificationTemplateRoutes(&api)
 	notificationTemplateRecipientRoutes(&api)
 	orderDocumentRoutes(&api, deps)
+	productionTransferRoutes(&api, deps)
 
 	mainMenuRoutes(&api)
 

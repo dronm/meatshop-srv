@@ -1,0 +1,147 @@
+name: OrderStatusAssignment
+comment: OrderStatusAssignment records the source of an order status assignment.
+humanName: order status assignment
+humanNamePlural: order status assignments
+
+table:
+  schema: public
+  name: order_status_assignments
+  comment: Reversible order status history, including manual assignments.
+  checks:
+    - >-
+      recorder IS NULL OR (
+      jsonb_typeof(recorder) = 'object'
+      AND recorder ? 'document_type'
+      AND recorder ? 'document_id'
+      AND jsonb_typeof(recorder->'document_type') = 'string'
+      AND recorder->>'document_type' ~ '^[a-z][a-z0-9_]*$'
+      AND jsonb_typeof(recorder->'document_id') = 'number'
+      AND recorder->>'document_id' ~ '^[1-9][0-9]*$'
+      )
+
+route: /order-status-assignments
+permissionPrefix: orderStatusAssignment
+serviceName: OrderStatusAssignment
+sessionRequired: true
+crudNotifications: false
+
+keys:
+  - name: id
+    pathName: id
+    type: bigint
+
+fields:
+  - name: id
+    type: bigint
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+
+  - name: order_id
+    type: int
+    required: true
+    references:
+      schema: public
+      table: orders
+      column: id
+      onDelete: CASCADE
+      onUpdate: CASCADE
+
+  - name: status_id
+    type: int
+    nullable: true
+    references:
+      schema: public
+      table: order_statuses
+      column: id
+      onDelete: RESTRICT
+      onUpdate: CASCADE
+
+  - name: recorder
+    type: jsonb
+    nullable: true
+    comment: Null for manual assignments; otherwise document_type and document_id.
+
+  - name: is_active
+    type: bool
+    required: true
+    dbRequired: true
+    default: "true"
+
+  - name: recorded_at
+    type: timestamptz
+    required: true
+    serverGenerated: true
+    default: "clock_timestamp()"
+
+list:
+  model: OrderStatusAssignmentList
+  table:
+    schema: public
+    name: order_status_assignments_list
+  fields:
+    - name: id
+      type: bigint
+      primaryKey: true
+    - name: order_id
+      type: int
+    - name: status_id
+      type: int
+      nullable: true
+    - name: status
+      type: json
+      goType: "*Ref"
+      nullable: true
+    - name: recorder
+      type: jsonb
+      nullable: true
+    - name: is_active
+      type: bool
+    - name: recorded_at
+      type: timestamptz
+    - name: is_current
+      type: bool
+
+crud:
+  create: false
+  list: true
+  detail: true
+  update: false
+  delete: false
+
+service:
+  manualMethods:
+    - detail
+    - list
+
+httpRoutes:
+  enabled: true
+
+permissions:
+  enabled: true
+  grantRoles:
+    - admin
+  descriptions:
+    list: Просмотр истории статусов заказа
+    detail: Просмотр записи статуса заказа
+
+applicationRoute:
+  enabled: false
+
+menu:
+  enabled: false
+
+frontend:
+  scaffold: false
+  title: История статусов
+  form:
+    enabled: false
+  list:
+    enabled: false
+
+# The supplemental migration owns the baseline, automatic tracking and audit.
+migration:
+  enabled: true
+
+test:
+  enabled: false

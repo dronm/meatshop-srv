@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -99,6 +100,9 @@ func (s *Store) SaveUpdate(ctx context.Context, raw json.RawMessage, update Upda
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit MAX incoming update: %w", err)
 	}
+	if update.UpdateType == "bot_added" && maxChatID != nil {
+		slog.Info("MAX bot added to chat; configure production_max_chat_id with this chat_id", "chat_id", maxChatID)
+	}
 	return nil
 }
 
@@ -127,11 +131,17 @@ func (s *Store) ClaimNext(ctx context.Context) (*OutMessage, error) {
 	var result OutMessage
 	err := s.pool.QueryRow(ctx, `
 		WITH next_message AS (
-			SELECT id
-			FROM public.max_out_messages
-			WHERE status = 'pending'
-				AND (next_attempt_at IS NULL OR next_attempt_at <= now())
-			ORDER BY created_at, id
+			SELECT candidate.id
+			FROM public.max_out_messages AS candidate
+			WHERE candidate.status = 'pending'
+				AND (candidate.next_attempt_at IS NULL OR candidate.next_attempt_at <= now())
+				AND (candidate.sequence_key IS NULL OR NOT EXISTS (
+					SELECT 1 FROM public.max_out_messages AS earlier
+					WHERE earlier.sequence_key = candidate.sequence_key
+						AND earlier.id < candidate.id
+						AND earlier.status NOT IN ('sent', 'superseded')
+				))
+			ORDER BY candidate.created_at, candidate.id
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
 		)
@@ -143,8 +153,8 @@ func (s *Store) ClaimNext(ctx context.Context) (*OutMessage, error) {
 			error_str = NULL
 		FROM next_message
 		WHERE m.id = next_message.id
-		RETURNING m.id, m.max_user_id, m.message, m.attempt_count
-	`).Scan(&result.ID, &result.MaxUserID, &result.Message, &result.AttemptCount)
+		RETURNING m.id, m.max_user_id, m.max_chat_id, m.message, m.attempt_count
+	`).Scan(&result.ID, &result.MaxUserID, &result.MaxChatID, &result.Message, &result.AttemptCount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -154,7 +164,7 @@ func (s *Store) ClaimNext(ctx context.Context) (*OutMessage, error) {
 	return &result, nil
 }
 
-func (s *Store) MarkSent(ctx context.Context, id int64) error {
+func (s *Store) MarkSent(ctx context.Context, id int64, remoteMessageID string) error {
 	_, err := s.pool.Exec(ctx, `
 		UPDATE public.max_out_messages
 		SET
@@ -162,9 +172,10 @@ func (s *Store) MarkSent(ctx context.Context, id int64) error {
 			sent_at = now(),
 			locked_at = NULL,
 			next_attempt_at = NULL,
-			error_str = NULL
-		WHERE id = $1
-	`, id)
+			error_str = NULL,
+			remote_message_id = NULLIF($2, '')
+		WHERE id = $1 AND status = 'sending'
+	`, id, remoteMessageID)
 	if err != nil {
 		return fmt.Errorf("mark MAX message sent: %w", err)
 	}
@@ -179,7 +190,7 @@ func (s *Store) MarkRetry(ctx context.Context, id int64, delay time.Duration, se
 			locked_at = NULL,
 			next_attempt_at = now() + $2::interval,
 			error_str = $3
-		WHERE id = $1
+		WHERE id = $1 AND status = 'sending'
 	`, id, durationInterval(delay), truncateError(sendErr))
 	if err != nil {
 		return fmt.Errorf("schedule MAX message retry: %w", err)
@@ -195,7 +206,7 @@ func (s *Store) MarkFailed(ctx context.Context, id int64, sendErr error) error {
 			locked_at = NULL,
 			next_attempt_at = NULL,
 			error_str = $2
-		WHERE id = $1
+		WHERE id = $1 AND status = 'sending'
 	`, id, truncateError(sendErr))
 	if err != nil {
 		return fmt.Errorf("mark MAX message failed: %w", err)

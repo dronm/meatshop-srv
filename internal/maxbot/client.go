@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const apiBaseURL = "https://platform-api2.max.ru"
@@ -87,6 +88,8 @@ func (c *Client) ConfigureWebhook(ctx context.Context, webhookURL, secret string
 	if webhookURL == "" {
 		return nil
 	}
+	// Omitting update_types subscribes to all events and preserves existing
+	// customer events while also delivering bot_added with its chat_id.
 	body := map[string]any{"url": webhookURL}
 	if secret = strings.TrimSpace(secret); secret != "" {
 		body["secret"] = secret
@@ -128,35 +131,97 @@ func (c *Client) ConfigureWebhook(ctx context.Context, webhookURL, secret string
 }
 
 func (c *Client) SendMessage(ctx context.Context, userID int64, body json.RawMessage) error {
-	if userID <= 0 {
-		return fmt.Errorf("MAX user id should be positive")
+	_, err := c.SendToDestination(ctx, &userID, nil, body)
+	return err
+}
+
+// SendToDestination sends to exactly one MAX user or group/channel. Chat IDs
+// are signed int64 values, and must not pass through floating-point conversion.
+func (c *Client) SendToDestination(ctx context.Context, userID, chatID *int64, body json.RawMessage) (string, error) {
+	if (userID == nil) == (chatID == nil) {
+		return "", fmt.Errorf("MAX message should have exactly one destination")
 	}
-	if len(body) == 0 || !json.Valid(body) {
-		return fmt.Errorf("MAX message body should be valid JSON")
+	if userID != nil && *userID <= 0 {
+		return "", fmt.Errorf("MAX user id should be positive")
+	}
+	if chatID != nil && *chatID == 0 {
+		return "", fmt.Errorf("MAX chat id should not be zero")
+	}
+	if len(bytes.TrimSpace(body)) == 0 || !json.Valid(body) || bytes.TrimSpace(body)[0] != '{' {
+		return "", fmt.Errorf("MAX message body should be valid JSON")
+	}
+	var message struct {
+		Text *string `json:"text"`
+	}
+	if err := json.Unmarshal(body, &message); err != nil {
+		return "", fmt.Errorf("MAX message body should be an object: %w", err)
+	}
+	if message.Text != nil && (!utf8.ValidString(*message.Text) || utf8.RuneCountInString(*message.Text) > 4000) {
+		return "", fmt.Errorf("MAX message text exceeds 4000 characters")
 	}
 
-	endpoint := apiBaseURL + "/messages?user_id=" + url.QueryEscape(fmt.Sprintf("%d", userID))
+	query := url.Values{}
+	if userID != nil {
+		query.Set("user_id", fmt.Sprintf("%d", *userID))
+	} else {
+		query.Set("chat_id", fmt.Sprintf("%d", *chatID))
+	}
+
+	endpoint := apiBaseURL + "/messages?" + query.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Authorization", c.token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("send MAX message: %w", err)
+		return "", fmt.Errorf("send MAX message: %w", err)
 	}
 	defer resp.Body.Close()
 
-	responseBody, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		return "", fmt.Errorf("read MAX message response: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &APIError{
+		return "", &APIError{
 			StatusCode: resp.StatusCode,
 			Body:       strings.TrimSpace(string(responseBody)),
 		}
 	}
-	return nil
+	if len(bytes.TrimSpace(responseBody)) == 0 {
+		return "", nil
+	}
+	var result struct {
+		Success *bool           `json:"success"`
+		Code    string          `json:"code"`
+		Message json.RawMessage `json:"message"`
+		Body    struct {
+			MID string `json:"mid"`
+		} `json:"body"`
+	}
+	if err := json.Unmarshal(responseBody, &result); err != nil {
+		return "", fmt.Errorf("decode MAX message response: %w", err)
+	}
+	if result.Success != nil && !*result.Success {
+		return "", &APIError{StatusCode: http.StatusBadRequest, Body: strings.TrimSpace(string(responseBody))}
+	}
+	if len(result.Message) > 0 && string(result.Message) != "null" {
+		var sent struct {
+			Body struct {
+				MID string `json:"mid"`
+			} `json:"body"`
+		}
+		if err := json.Unmarshal(result.Message, &sent); err != nil {
+			return "", fmt.Errorf("decode MAX sent message: %w", err)
+		}
+		if sent.Body.MID != "" {
+			return sent.Body.MID, nil
+		}
+	}
+	return result.Body.MID, nil
 }
 
 func BuildWelcomeMessage(botID int64) (json.RawMessage, error) {

@@ -72,6 +72,20 @@ func cashCustomerRecord(raw string, version int64) constants.Record {
 
 func cashCustomerManager(t *testing.T, repository *constantTestRepository, lookup func(context.Context, int) (bool, error)) *constants.Manager {
 	t.Helper()
+	// These tests exercise CashCustomer; other required catalogue seeds must
+	// still exist so a missing cash-customer migration remains distinguishable.
+	repository.mu.Lock()
+	if repository.records == nil {
+		repository.records = make(map[int64]constants.Record)
+	}
+	repository.records[18] = constants.Record{
+		Metadata: constants.Metadata{
+			ID: 18, Code: CodeProductionMaxChatID, Name: "Чат MAX для производства",
+			ValueType: constants.TypeString, Version: 1,
+		},
+		Value: json.RawMessage("null"),
+	}
+	repository.mu.Unlock()
 	registry, err := newRegistry(lookup)
 	if err != nil {
 		t.Fatal(err)

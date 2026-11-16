@@ -1,0 +1,128 @@
+name: ProductionTransfer
+comment: Production handover document header; order contents are read live.
+humanName: production transfer
+humanNamePlural: production transfers
+table:
+  schema: public
+  name: production_transfers
+route: /production-transfers
+permissionPrefix: productionTransfer
+serviceName: ProductionTransfer
+sessionRequired: true
+crudNotifications: true
+keys:
+  - name: id
+    pathName: id
+    type: int
+fields:
+  - name: id
+    type: int
+    primaryKey: true
+    autoIncrement: true
+    serverGenerated: true
+  - name: version
+    type: bigint
+    required: true
+    serverGenerated: true
+    default: "1"
+  - name: document_date
+    type: date
+    required: true
+  - name: for_date
+    type: date
+    required: true
+  - name: comment
+    type: text
+    nullable: true
+  - name: request_id
+    type: text
+    nullable: true
+    serverGenerated: true
+list:
+  model: ProductionTransferList
+  table:
+    schema: public
+    name: production_transfers_list
+  fields:
+    - name: id
+      type: int
+      primaryKey: true
+    - name: version
+      type: bigint
+    - name: document_date
+      type: date
+    - name: for_date
+      type: date
+    - name: comment
+      type: text
+      nullable: true
+    - name: product_totals
+      type: text
+    - name: customers
+      type: text
+crud:
+  create: true
+  list: true
+  detail: true
+  update: true
+  delete: true
+service:
+  manualMethods: [create, detail, update, delete]
+httpRoutes:
+  enabled: false
+permissions:
+  enabled: true
+  grantRoles: [admin]
+  descriptions:
+    create: Передача заказов в производство
+    list: Просмотр передач в производство
+    detail: Просмотр передачи в производство
+    update: Изменение передачи в производство
+    delete: Удаление передачи в производство
+applicationRoute:
+  enabled: true
+  name: productionTransfers
+  path: /production-transfers
+  description: Передачи в производство
+  section: Документы
+  icon: pi pi-cog
+  menuAvailable: true
+menu:
+  enabled: false
+frontend:
+  scaffold: true
+  title: Передачи в производство
+  form:
+    enabled: false
+  list:
+    enabled: true
+    pageSize: 30
+    stickyHeader: true
+    resizableColumns: true
+    columnResizeMode: expand
+    columns:
+      - field: for_date
+        label: На дату
+        width: 9rem
+      - field: product_totals
+        label: Продукция по единицам измерения
+        width: 36rem
+        sortable: false
+      - field: customers
+        label: Заказчики и точки продаж
+        width: 36rem
+        sortable: false
+  routes:
+    listName: productionTransfers
+    createName: productionTransferCreate
+    editName: productionTransferEdit
+migration:
+  enabled: true
+  indexes:
+    - name: production_transfers_for_date_idx
+      columns: [for_date]
+    - name: production_transfers_request_id_idx
+      columns: [request_id]
+      unique: true
+test:
+  enabled: false

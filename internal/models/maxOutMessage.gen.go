@@ -13,12 +13,22 @@ const maxOutMessageRelation = "public.max_out_messages"
 type MaxOutMessage struct {
 	ID int64 `json:"id" primaryKey:"true" srvCalc:"true"`
 	// MAX platform user ID.
-	MaxUserID int64 `json:"max_user_id" required:"true"`
+	MaxUserID *int64 `json:"max_user_id"`
+	// MAX group or channel ID; exactly one destination is required.
+	MaxChatID *int64 `json:"max_chat_id"`
+	// Message identifier returned by MAX after delivery.
+	RemoteMessageID *string `json:"remote_message_id"`
+	// Unique application delivery key preventing duplicate queue inserts.
+	DeliveryKey *string `json:"delivery_key"`
+	// Messages with this key are delivered in insertion order.
+	SequenceKey *string `json:"sequence_key"`
+	// Part number inside a document version.
+	SequenceNum *int `json:"sequence_num"`
 	// Complete MAX message request body.
 	Message map[string]any `json:"message" required:"true"`
 	// Application metadata associated with the message.
 	Metadata map[string]any `json:"metadata" required:"true"`
-	// Queue state: pending, sending, sent, or failed.
+	// Queue state: pending, sending, sent, failed, or superseded.
 	Status string `json:"status" required:"true"`
 	// Number of delivery attempts.
 	AttemptCount int `json:"attempt_count" required:"true"`
@@ -46,16 +56,18 @@ const maxOutMessageListRelation = "public.max_out_messages_list"
 
 // MaxOutMessageList is the collection projection for outgoing MAX messages.
 type MaxOutMessageList struct {
-	ID            int64      `json:"id" primaryKey:"true"`
-	MaxUserID     int64      `json:"max_user_id" required:"true"`
-	MaxUser       *Ref       `json:"max_user"`
-	Status        string     `json:"status" required:"true"`
-	AttemptCount  int        `json:"attempt_count" required:"true"`
-	NextAttemptAt *time.Time `json:"next_attempt_at"`
-	LockedAt      *time.Time `json:"locked_at"`
-	SentAt        *time.Time `json:"sent_at"`
-	CreatedAt     time.Time  `json:"created_at" required:"true"`
-	ErrorStr      *string    `json:"error_str"`
+	ID              int64      `json:"id" primaryKey:"true"`
+	MaxUserID       *int64     `json:"max_user_id"`
+	MaxUser         *Ref       `json:"max_user"`
+	MaxChatID       *string    `json:"max_chat_id"`
+	RemoteMessageID *string    `json:"remote_message_id"`
+	Status          string     `json:"status" required:"true"`
+	AttemptCount    int        `json:"attempt_count" required:"true"`
+	NextAttemptAt   *time.Time `json:"next_attempt_at"`
+	LockedAt        *time.Time `json:"locked_at"`
+	SentAt          *time.Time `json:"sent_at"`
+	CreatedAt       time.Time  `json:"created_at" required:"true"`
+	ErrorStr        *string    `json:"error_str"`
 }
 
 func (m MaxOutMessageList) Relation() string {
