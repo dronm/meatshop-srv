@@ -248,7 +248,7 @@ func (q *removeLinesTestQuerier) Exec(_ context.Context, query string, args ...a
 		for _, id := range q.orderedItemIDs(orderID) {
 			q.registerSnapshots[orderID][id] = q.items[id].orderItemSnapshot
 		}
-	case strings.Contains(query, "UPDATE public.order_items") && strings.Contains(query, "SET price = NULL"):
+	case strings.Contains(query, "UPDATE public.order_items") && strings.Contains(query, "SET price = CASE WHEN orders.cash_payed"):
 		q.priceClears = append(q.priceClears, args[0].(int))
 	case strings.Contains(query, "pg_notify('Order.Update'"):
 		q.notifications = append(q.notifications, args[0].(string))

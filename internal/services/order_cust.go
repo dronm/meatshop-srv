@@ -79,6 +79,9 @@ func (s *OrderService) Create(
 		if err := syncOrderItems(ctx, tx, document.ID, document.Items); err != nil {
 			return err
 		}
+		if err := syncCashOrderItemPrices(ctx, tx, document); err != nil {
+			return err
+		}
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, document.ID); err != nil {
 			return err
 		}
@@ -208,6 +211,9 @@ func (s *OrderService) Update(
 		}
 
 		if err := syncOrderItems(ctx, tx, document.ID, document.Items); err != nil {
+			return err
+		}
+		if err := syncCashOrderItemPrices(ctx, tx, document); err != nil {
 			return err
 		}
 		if err := rebuildProductRegisterActions(ctx, tx, orderRecorderType, document.ID); err != nil {

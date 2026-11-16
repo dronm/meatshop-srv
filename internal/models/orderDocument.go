@@ -31,6 +31,8 @@ type OrderDocumentItem struct {
 	MeasureUnitID   int     `json:"measure_unit_id"`
 	QuantRequired   float64 `json:"quant_required"`
 	Quant           float64 `json:"quant"`
+	Price           *string `json:"price,omitempty"`
+	Amount          *string `json:"amount,omitempty"`
 	WeightConfirmed *bool   `json:"weight_confirmed,omitempty"`
 	Mercury         *bool   `json:"mercury,omitempty"`
 }

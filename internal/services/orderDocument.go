@@ -81,6 +81,11 @@ func validateOrderDocument(document *models.OrderDocument, create bool, pathID i
 		if item.MeasureUnitID <= 0 {
 			return invalidOrderDocumentItem(index, "measure_unit_id should be positive")
 		}
+		if document.CashPayed {
+			if err := normalizeCashOrderItem(item, index); err != nil {
+				return err
+			}
+		}
 		if item.QuantRequired <= 0 {
 			return invalidOrderDocumentItem(index, "quant_required should be greater than zero")
 		}

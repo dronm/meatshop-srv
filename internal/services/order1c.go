@@ -155,11 +155,16 @@ func order1CParams(ctx context.Context, tx ds.Querier, orderID int, orderVersion
 func clearOrder1CPrices(ctx context.Context, tx ds.Querier, orderID int) error {
 	// These values describe the last completed 1C calculation. A new
 	// synchronization invalidates them until the matching response arrives.
+	// Cash orders keep manually entered price/amount while waiting for that
+	// response; VAT and marking flags still require a fresh calculation.
 	if _, err := tx.Exec(ctx, `
-		UPDATE public.order_items
-		SET price = NULL, amount = NULL, vat_percent = NULL, vat_amount = NULL,
+		UPDATE public.order_items AS item
+		SET price = CASE WHEN orders.cash_payed THEN item.price ELSE NULL END,
+			amount = CASE WHEN orders.cash_payed THEN item.amount ELSE NULL END,
+			vat_percent = NULL, vat_amount = NULL,
 			use_marking = FALSE
-		WHERE order_id = $1
+		FROM public.orders AS orders
+		WHERE item.order_id = $1 AND orders.id = item.order_id
 			AND (price IS NOT NULL OR amount IS NOT NULL OR vat_percent IS NOT NULL
 				OR vat_amount IS NOT NULL OR use_marking IS DISTINCT FROM FALSE)
 	`, orderID); err != nil {
