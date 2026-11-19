@@ -1,0 +1,18 @@
+--- a/cmd/max/main.go
++++ b/cmd/max/main.go
+@@ -55,6 +55,15 @@
+ 	if !ok {
+ 		return fmt.Errorf("MAX database provider must be pgds")
+ 	}
++	// pgds creates the underlying pool on the first primary acquisition.
++	dbCtx, cancelDB := context.WithTimeout(context.Background(), 10*time.Second)
++	conn, serverID, err := db.GetPrimary(dbCtx)
++	cancelDB()
++	if err != nil {
++		return fmt.Errorf("acquire MAX primary database connection: %w", err)
++	}
++	db.Release(conn, serverID)
++
+ 	pool, err := provider.PrimaryPool()
+ 	if err != nil {
+ 		return fmt.Errorf("MAX primary database pool: %w", err)

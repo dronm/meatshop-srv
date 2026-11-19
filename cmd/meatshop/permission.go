@@ -51,10 +51,13 @@ func customerMessageWSChecker(check webapp.PermissionChecker) ws.PermissionCheck
 			return nil
 		}
 		permissions := map[string]string{
-			"CustomerMessage.List":        "customerMessage.list",
-			"CustomerMessage.Detail":      "customerMessage.detail",
-			"CustomerMessage.UnreadCount": "customerMessage.list",
-			"CustomerMessage.MarkRead":    "customerMessage.markRead",
+			"CustomerMessage.List":             "customerMessage.list",
+			"CustomerMessage.Detail":           "customerMessage.detail",
+			"CustomerMessage.UnreadCount":      "customerMessage.list",
+			"CustomerMessage.ChatParticipants": "customerMessage.list",
+			"CustomerMessage.ChatHistory":      "customerMessage.list",
+			"CustomerMessage.ChatSend":         "customerMessage.send",
+			"CustomerMessage.MarkRead":         "customerMessage.markRead",
 		}
 		permission, ok := permissions[method]
 		if !ok || check == nil {

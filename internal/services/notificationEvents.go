@@ -106,6 +106,7 @@ func enqueueOrderResponsibleNotifications(
 		}
 
 		if _, err := enqueueMaxOutMessage(ctx, tx, item.maxUserID, text, map[string]any{
+			"audience":                 "staff",
 			"event":                    event,
 			"entity_type":              "order",
 			"entity_id":                data.OrderID,
@@ -176,6 +177,7 @@ func enqueueOrderCustomerNotification(
 			return err
 		}
 		if _, err := enqueueMaxOutMessage(ctx, tx, item.maxUserID, text, map[string]any{
+			"audience":                 "customer",
 			"event":                    notificationEventOrderChanged,
 			"entity_type":              "order",
 			"entity_id":                data.OrderID,

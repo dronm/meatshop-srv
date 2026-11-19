@@ -26,6 +26,7 @@ func BuildRoutes(dependencies ...Dependencies) []webapp.Route {
 	applicationRouteRoutes(&api)
 	constantRoutes(&api)
 	customerMessageActionRoutes(&api)
+	maxChatRoutes(&api)
 
 	registerGeneratedRoutes(&api)
 	customerUserRoutes(&api)
