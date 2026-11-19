@@ -181,8 +181,12 @@ if [[ $run_migrations == true ]]; then
 fi
 
 printf 'Servers: %s\n' "${SERVERS[*]}"
+notify_admin=false
 for component in "${components[@]}"; do
 	printf 'Deploy %s to %s\n' "$component" "${active_paths[$component]}"
+	if [[ $component == admin ]]; then
+		notify_admin=true
+	fi
 done
 if [[ $copy_migrations == true ]]; then
 	printf 'Upload the complete migrations/ tree to each server.\n'
@@ -191,6 +195,9 @@ if [[ $run_migrations == true ]]; then
 	printf 'Apply pending migrations once from %s.\n' "$migration_host"
 fi
 printf 'Record the completed deployment once from %s.\n' "$migration_host"
+if [[ $notify_admin == true ]]; then
+	printf 'Notify connected admin users after activation on all servers.\n'
+fi
 if [[ $dry_run == true ]]; then
 	exit 0
 fi
@@ -261,10 +268,24 @@ case "$action" in
 	check-deploy-update|record-deploy-update)
 		load_primary_db "$1"
 		sql='INSERT INTO public.deploy_updates DEFAULT VALUES'
+		if [[ $2 == true ]]; then
+			sql="WITH deployed AS ($sql RETURNING id)
+				SELECT pg_notify('DeployUpdate.Insert', json_build_object(
+					'result', json_build_object('id', id, 'release_id', :'release_id')
+				)::text) FROM deployed"
+		fi
 		if [[ $action == check-deploy-update ]]; then
 			sql="EXPLAIN $sql"
 		fi
-		psql -X --no-password --set=ON_ERROR_STOP=1 --dbname="$DB_CONN" --command="$sql" >/dev/null
+		psql -X --no-password --set=ON_ERROR_STOP=1 --set=release_id="$3" --dbname="$DB_CONN" <<< "$sql;" >/dev/null
+		;;
+	publish-admin-release)
+		admin_dir=$1
+		marker=$(mktemp -- "$admin_dir/.admin-release.XXXXXXXX")
+		trap 'rm -f -- "$marker"' EXIT
+		printf '%s\n' "$2" > "$marker"
+		chmod 644 -- "$marker"
+		mv -Tf -- "$marker" "$admin_dir/admin-release.txt"
 		;;
 esac
 REMOTE
@@ -295,6 +316,9 @@ build_frontend() {
 		die "Local project directory is unavailable for $component."
 	(
 		cd -- "$source_dir"
+		if [[ $component == admin ]]; then
+			export VITE_ADMIN_RELEASE_ID=$release_id
+		fi
 		"${command_args[@]}"
 	)
 	output_dir=$(cd -- "${frontend_outputs[$component]}" && pwd -P) ||
@@ -310,8 +334,12 @@ build_frontend() {
 upload_tree() {
 	local server=$1
 	local source=$2
-	local destination=$3
-	rsync -azs --chmod=Du=rwx,Dgo=rx,Fu=rwX,Fgo=rX -e 'ssh -o BatchMode=yes' -- "$source/" "$server:$destination/"
+	local component=$3
+	local -a excludes=()
+	if [[ $component == admin ]]; then
+		excludes+=(--exclude=/admin-release.txt)
+	fi
+	rsync -azs --chmod=Du=rwx,Dgo=rx,Fu=rwX,Fgo=rX -e 'ssh -o BatchMode=yes' "${excludes[@]}" -- "$source/" "$server:$release_dir/$component/"
 }
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/meatshop-release.XXXXXXXX")
@@ -379,10 +407,10 @@ fi
 for server in "${SERVERS[@]}"; do
 	printf 'Uploading release to %s\n' "$server"
 	for component in "${components[@]}"; do
-		upload_tree "$server" "${artifacts[$component]}" "$release_dir/$component"
+		upload_tree "$server" "${artifacts[$component]}" "$component"
 	done
 	if [[ $copy_migrations == true ]]; then
-		upload_tree "$server" "$root_dir/migrations" "$release_dir/migrations"
+		upload_tree "$server" "$root_dir/migrations" migrations
 	fi
 done
 
@@ -391,7 +419,7 @@ if [[ $run_migrations == true ]]; then
 	remote_operation "$migration_host" migrate "$release_dir/migrations" "$REMOTE_DB_ENV_FILE" "$migrate_bin"
 fi
 
-remote_operation "$migration_host" check-deploy-update "$REMOTE_DB_ENV_FILE"
+remote_operation "$migration_host" check-deploy-update "$REMOTE_DB_ENV_FILE" "$notify_admin" "$release_id"
 for component in "${components[@]}"; do
 	for server in "${SERVERS[@]}"; do
 		printf 'Activating %s on %s\n' "$component" "$server"
@@ -399,6 +427,16 @@ for component in "${components[@]}"; do
 			"${units[$component]}" "${health_urls[$component]}" "$systemctl_mode" < "$deploy_dir/remote.sh"
 	done
 done
-remote_operation "$migration_host" record-deploy-update "$REMOTE_DB_ENV_FILE" ||
+remote_operation "$migration_host" record-deploy-update "$REMOTE_DB_ENV_FILE" "$notify_admin" "$release_id" ||
 	die "Release $release_id was applied, but its deployment timestamp could not be confirmed."
+if [[ $notify_admin == true ]]; then
+	unconfirmed=()
+	for server in "${SERVERS[@]}"; do
+		if ! remote_operation "$server" publish-admin-release "$release_dir/admin" "$release_id"; then
+			unconfirmed+=("$server")
+		fi
+	done
+	(("${#unconfirmed[@]}" == 0)) ||
+		die "Release $release_id is active and recorded, but admin-release.txt publication could not be confirmed on: ${unconfirmed[*]}."
+fi
 printf 'Deployed release %s\n' "$release_id"

@@ -43,4 +43,8 @@ Activation switches each component's symlink to the new release. If its restart 
 
 After all selected components pass activation on every server, the script inserts one row in `public.deploy_updates` on the shared primary. A migrations-only deployment records completion after the migration command succeeds. The About dialog reads this timestamp each time it opens.
 
+When the release includes the admin frontend, the same SQL statement publishes one `DeployUpdate.Insert` notification on the shared primary. Connected admin users can reload immediately or ask for a reminder. The database user for these deployments needs permission to insert the row, read its returned `id`, and execute `pg_notify`.
+
+The script passes the release ID to the admin build through `VITE_ADMIN_RELEASE_ID`. After the database confirms the deployment, the script atomically publishes that ID in `admin-release.txt` beside `index.html` on each server. This lets an open tab detect the new release even if it missed the live notification during a backend restart. Configure Nginx to return `Cache-Control: no-cache` for the admin HTML and `Cache-Control: no-store` for `admin-release.txt`. Reserve long-lived immutable caching for fingerprinted assets. If marker publication fails, the script reports the affected servers. The release and its database record are already active.
+
 All deploy commands that change a server use a shared lock at `.deploy-lock` inside `REMOTE_RELEASES_DIR` on `MIGRATION_HOST`. If a cancelled or interrupted deployment leaves the lock behind, verify that no deployment is running, then remove its `owner` file and the empty lock directory on that host before retrying.
