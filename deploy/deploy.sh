@@ -175,8 +175,8 @@ if [[ $copy_migrations == true ]]; then
 fi
 
 migrate_bin=${MIGRATE_BIN:-migrate}
+valid_remote_path "${REMOTE_DB_ENV_FILE:-}" || die 'Set REMOTE_DB_ENV_FILE to the absolute path of the primary DB config.'
 if [[ $run_migrations == true ]]; then
-	valid_remote_path "${REMOTE_DB_ENV_FILE:-}" || die 'Set REMOTE_DB_ENV_FILE to the absolute path of the primary DB config.'
 	[[ $migrate_bin != -* ]] || die 'Set MIGRATE_BIN to a command or absolute path.'
 fi
 
@@ -190,6 +190,7 @@ fi
 if [[ $run_migrations == true ]]; then
 	printf 'Apply pending migrations once from %s.\n' "$migration_host"
 fi
+printf 'Record the completed deployment once from %s.\n' "$migration_host"
 if [[ $dry_run == true ]]; then
 	exit 0
 fi
@@ -215,6 +216,12 @@ set -euo pipefail
 umask 022
 action=$1
 shift
+load_primary_db() {
+	[[ -r $1 ]] || { printf 'Cannot read %s.\n' "$1" >&2; return 1; }
+	unset DB_CONN
+	source "$1"
+	[[ -n ${DB_CONN:-} ]] || { echo 'The remote DB config must set DB_CONN.' >&2; return 1; }
+}
 case "$action" in
 	lock)
 		root=$1
@@ -244,15 +251,20 @@ case "$action" in
 		migration_dir=$1
 		migration_config=$2
 		migration_cli=$3
-		[[ -r $migration_config ]] || { printf 'Cannot read %s.\n' "$migration_config" >&2; exit 1; }
+		load_primary_db "$migration_config"
 		command -v "$migration_cli" >/dev/null ||
 			{ printf 'Cannot find migration CLI %s.\n' "$migration_cli" >&2; exit 1; }
-		unset DB_CONN
-		source "$migration_config"
-		[[ -n ${DB_CONN:-} ]] || { echo 'The remote migration config must set DB_CONN.' >&2; exit 1; }
 		if [[ $action == migrate ]]; then
 			"$migration_cli" -path "$migration_dir" -database "$DB_CONN" up
 		fi
+		;;
+	check-deploy-update|record-deploy-update)
+		load_primary_db "$1"
+		sql='INSERT INTO public.deploy_updates DEFAULT VALUES'
+		if [[ $action == check-deploy-update ]]; then
+			sql="EXPLAIN $sql"
+		fi
+		psql -X --no-password --set=ON_ERROR_STOP=1 --dbname="$DB_CONN" --command="$sql" >/dev/null
 		;;
 esac
 REMOTE
@@ -379,6 +391,7 @@ if [[ $run_migrations == true ]]; then
 	remote_operation "$migration_host" migrate "$release_dir/migrations" "$REMOTE_DB_ENV_FILE" "$migrate_bin"
 fi
 
+remote_operation "$migration_host" check-deploy-update "$REMOTE_DB_ENV_FILE"
 for component in "${components[@]}"; do
 	for server in "${SERVERS[@]}"; do
 		printf 'Activating %s on %s\n' "$component" "$server"
@@ -386,4 +399,6 @@ for component in "${components[@]}"; do
 			"${units[$component]}" "${health_urls[$component]}" "$systemctl_mode" < "$deploy_dir/remote.sh"
 	done
 done
+remote_operation "$migration_host" record-deploy-update "$REMOTE_DB_ENV_FILE" ||
+	die "Release $release_id was applied, but its deployment timestamp could not be confirmed."
 printf 'Deployed release %s\n' "$release_id"

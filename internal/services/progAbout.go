@@ -23,8 +23,8 @@ var (
 	// Populated with build information in main.go before the HTTP server starts.
 	ProgAbout = &models.ProgAbout{};
 
-	progAboutMx     sync.RWMutex;
-	progAboutLoaded bool;
+	externalIPOnce sync.Once;
+	cachedExternalIP string;
 )
 
 var externalIPHTTPClient = &http.Client{
@@ -61,24 +61,7 @@ func (s *ProgAboutService) Info(ctx context.Context) (*models.ProgAbout, error) 
 		return nil, err;
 	}
 
-	progAboutMx.RLock();
-	if progAboutLoaded {
-		result := cloneProgAbout(ProgAbout);
-		progAboutMx.RUnlock();
-
-		return result, nil;
-	}
-	progAboutMx.RUnlock();
-
-	progAboutMx.Lock();
-	defer progAboutMx.Unlock();
-
-	// Another request may have initialized it while this request was waiting.
-	if progAboutLoaded {
-		return cloneProgAbout(ProgAbout), nil;
-	}
-
-	result := cloneProgAbout(ProgAbout);
+	result := *ProgAbout;
 	result.DB = &models.ProgAboutDB{
 		ServerType: "PostgreSQL",
 	};
@@ -87,20 +70,18 @@ func (s *ProgAboutService) Info(ctx context.Context) (*models.ProgAbout, error) 
 	if err != nil {
 		return nil, fmt.Errorf("get primary database connection: %w", err);
 	}
-	defer s.DB.Release(poolConn, connID);
-
 	conn := poolConn.Conn();
 
 	var updatedAt sql.NullTime;
 
-	if err := conn.QueryRow(
+	err = conn.QueryRow(
 		ctx,
 		`
 			SELECT
 				version(),
 				(
-					SELECT updated_at
-					FROM deploy_updates
+					SELECT updated_at::timestamptz
+					FROM public.deploy_updates
 					ORDER BY updated_at DESC
 					LIMIT 1
 				),
@@ -122,7 +103,9 @@ func (s *ProgAboutService) Info(ctx context.Context) (*models.ProgAbout, error) 
 		&result.DB.ServerVersion,
 		&updatedAt,
 		&result.DB.Migration,
-	); err != nil {
+	);
+	s.DB.Release(poolConn, connID);
+	if err != nil {
 		return nil, fmt.Errorf("read program information from database: %w", err);
 	}
 
@@ -130,23 +113,17 @@ func (s *ProgAboutService) Info(ctx context.Context) (*models.ProgAbout, error) 
 		result.UpdatedAt = updatedAt.Time;
 	}
 
-	ip, err := externalIP(ctx);
-	if err != nil {
-		// External IP is informational and should not break the whole endpoint.
-		slog.Warn(
-			"failed to determine external IP",
-			"error", err,
-			"query_id", s.QueryID,
-		);
-	} else {
-		result.Backend.IP = ip;
-	}
+	externalIPOnce.Do(func() {
+		ip, err := externalIP(ctx);
+		if err != nil {
+			slog.Warn("failed to determine external IP", "error", err, "query_id", s.QueryID);
+			return;
+		}
+		cachedExternalIP = ip;
+	});
+	result.Backend.IP = cachedExternalIP;
 
-	// Preserve the global pointer because main.go and other code may hold it.
-	*ProgAbout = *result;
-	progAboutLoaded = true;
-
-	return cloneProgAbout(ProgAbout), nil;
+	return &result, nil;
 }
 
 func (s *ProgAboutService) requireDB() error {
@@ -155,21 +132,6 @@ func (s *ProgAboutService) requireDB() error {
 	}
 
 	return nil;
-}
-
-func cloneProgAbout(source *models.ProgAbout) *models.ProgAbout {
-	if source == nil {
-		return &models.ProgAbout{};
-	}
-
-	result := *source;
-
-	if source.DB != nil {
-		db := *source.DB;
-		result.DB = &db;
-	}
-
-	return &result;
 }
 
 func externalIP(ctx context.Context) (string, error) {
